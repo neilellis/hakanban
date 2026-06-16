@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hakanban frontend smoke test</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #1d2125; }
+      hakanban-panel { display: block; height: 100vh; }
+      /* Provide the HA theme vars the components expect. */
+      :root {
+        --primary-text-color: #e6edf3;
+        --secondary-text-color: #9aa4b2;
+        --primary-color: #4f9dff;
+        --card-background-color: #22272e;
+        --ha-card-background: #2d333b;
+        --divider-color: rgba(255,255,255,.12);
+        --app-header-background-color: #1b3a5b;
+        --app-header-text-color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import "/tests/browser/mock-hass.js";
+      import "/custom_components/hakanban/static/hakanban-panel.js";
+
+      const panel = document.createElement("hakanban-panel");
+      document.body.appendChild(panel);
+      panel.hass = window.__mockHass;
+      window.__panel = panel;
+
+      // Surface unhandled errors for the test harness to read.
+      window.__errors = [];
+      window.addEventListener("error", (e) => window.__errors.push(String(e.message)));
+      window.addEventListener("unhandledrejection", (e) => window.__errors.push("promise: " + e.reason));
+    </script>
+  </body>
+</html>

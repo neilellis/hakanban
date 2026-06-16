@@ -1,0 +1,6 @@
+{
+  "name": "Hakanban",
+  "render_readme": true,
+  "homeassistant": "2026.5.0",
+  "hacs": "2.0.0"
+}

@@ -1,0 +1,13 @@
+{
+  "domain": "hakanban",
+  "name": "Hakanban",
+  "codeowners": ["@neilellis"],
+  "config_flow": true,
+  "dependencies": ["http", "websocket_api", "frontend", "todo"],
+  "documentation": "https://github.com/neilellis/hakanban",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/neilellis/hakanban/issues",
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

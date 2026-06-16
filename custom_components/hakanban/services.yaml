@@ -1,0 +1,142 @@
+add_card:
+  name: Add card
+  description: Add a card to a Hakanban column.
+  fields:
+    board_id:
+      name: Board ID
+      description: The board the column belongs to.
+      required: true
+      example: 4f3c2a1b
+      selector:
+        text:
+    column_id:
+      name: Column ID
+      description: The column (list) to add the card to.
+      required: true
+      example: 9a8b7c6d
+      selector:
+        text:
+    title:
+      name: Title
+      description: Card title.
+      required: true
+      example: Buy milk
+      selector:
+        text:
+    description:
+      name: Description
+      description: Markdown description.
+      selector:
+        text:
+          multiline: true
+    labels:
+      name: Labels
+      description: List of label IDs to apply.
+      selector:
+        object:
+    due:
+      name: Due
+      description: Due date/time (ISO 8601).
+      example: "2026-07-01T18:00:00"
+      selector:
+        text:
+
+move_card:
+  name: Move card
+  description: Move a card to another column (and optionally another board).
+  fields:
+    card_id:
+      name: Card ID
+      required: true
+      selector:
+        text:
+    to_column:
+      name: To column
+      description: Destination column ID.
+      required: true
+      selector:
+        text:
+    position:
+      name: Position
+      description: Zero-based index within the destination column (defaults to the end).
+      selector:
+        number:
+          min: 0
+          mode: box
+    to_board:
+      name: To board
+      description: Destination board ID (defaults to the card's current board).
+      selector:
+        text:
+
+update_card:
+  name: Update card
+  description: Update fields on an existing card.
+  fields:
+    card_id:
+      name: Card ID
+      required: true
+      selector:
+        text:
+    title:
+      name: Title
+      selector:
+        text:
+    description:
+      name: Description
+      selector:
+        text:
+          multiline: true
+    due:
+      name: Due
+      selector:
+        text:
+    status:
+      name: Status
+      description: Mark the card complete or active.
+      selector:
+        select:
+          options:
+            - needs_action
+            - completed
+
+add_comment:
+  name: Add comment
+  description: Append a comment to a card's activity feed.
+  fields:
+    card_id:
+      name: Card ID
+      required: true
+      selector:
+        text:
+    text:
+      name: Text
+      required: true
+      selector:
+        text:
+          multiline: true
+
+create_board:
+  name: Create board
+  description: Create a new Kanban board.
+  fields:
+    title:
+      name: Title
+      required: true
+      selector:
+        text:
+
+create_column:
+  name: Create column
+  description: Create a new column (list) on a board.
+  fields:
+    board_id:
+      name: Board ID
+      required: true
+      selector:
+        text:
+    title:
+      name: Title
+      required: true
+      selector:
+        text:

@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Hakanban",
+        "description": "This adds the Hakanban Kanban board to Home Assistant. There is nothing to configure — boards, columns and cards are managed from the Hakanban panel in the sidebar."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Hakanban is already set up."
+    }
+  },
+  "services": {
+    "add_card": { "name": "Add card", "description": "Add a card to a Hakanban column." },
+    "move_card": { "name": "Move card", "description": "Move a card to another column." },
+    "update_card": { "name": "Update card", "description": "Update fields on an existing card." },
+    "add_comment": { "name": "Add comment", "description": "Append a comment to a card." },
+    "create_board": { "name": "Create board", "description": "Create a new Kanban board." },
+    "create_column": { "name": "Create column", "description": "Create a new column on a board." }
+  }
+}
