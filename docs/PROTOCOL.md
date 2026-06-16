@@ -129,3 +129,8 @@ each column entity (Assist / voice).
 * One **`todo` list entity** per column, attached to its board device. `unique_id =
   f"{board_id}_{column_id}"`. It reads/writes cards through `HakanbanData`, so the native todo
   card, Assist and `todo.*` services operate on the same data the panel shows.
+* One **`calendar` entity** per board, attached to its board device. `unique_id =
+  f"{board_id}_calendar"`. Every non-archived card with a `due` date surfaces as an event
+  (summary `#<number> <title>`); a date-only due is an all-day event, a due with a time is a
+  one-hour block. Read-only view over `HakanbanData`, so dated cards appear in HA's Calendar
+  panel / dashboard card and are Assist-queryable and automatable.

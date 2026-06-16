@@ -183,6 +183,12 @@ def run():
     full = mgr.full_payload()
     check("full_payload returns board", any(b["id"] == bid for b in full["boards"]))
 
+    # cards_in_board gathers cards across every column (used by the calendar entity).
+    board_card_ids = {c["id"] for c in mgr.cards_in_board(bid)}
+    check("cards_in_board spans columns",
+          {c2["id"], c3["id"]}.issubset(board_card_ids)
+          and all(c["id"] in board_card_ids for c in pasted))
+
     failed = [n for n, ok in RESULTS if not ok]
     print()
     print(f"{len(RESULTS) - len(failed)}/{len(RESULTS)} checks passed")

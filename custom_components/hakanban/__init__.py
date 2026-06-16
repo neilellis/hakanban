@@ -13,7 +13,7 @@ from .services import async_setup_services, async_unload_services
 from .store import HakanbanStore
 from .websocket_api import async_register_websocket_api
 
-PLATFORMS: list[Platform] = [Platform.TODO]
+PLATFORMS: list[Platform] = [Platform.TODO, Platform.CALENDAR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -83,7 +83,7 @@ export class HakanbanPanel extends HTMLElement {
     const tabs = boards
       .map(
         (b) =>
-          `<button class="hk-tab ${b.id === this._activeBoardId ? "active" : ""}" data-board="${b.id}" data-tabtitle>${escapeHtml(b.title)}</button>`
+          `<button class="hk-tab ${b.id === this._activeBoardId ? "active" : ""}" data-board="${b.id}" data-tabtitle title="Double-click to rename">${escapeHtml(b.title)}</button>`
       )
       .join("");
     const tb = this.shadowRoot.getElementById("toolbar");
@@ -97,8 +97,13 @@ export class HakanbanPanel extends HTMLElement {
       <button class="hk-iconbtn" id="bg-btn" title="Board background">🎨</button>
       <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>`;
 
+    const boardById = (id) => (this._data?.boards || []).find((b) => b.id === id);
     tb.querySelectorAll("[data-board]").forEach((el) => {
       el.addEventListener("click", () => {
+        // While renaming, or when re-selecting the already-active tab, skip the
+        // re-render: rebuilding the toolbar would replace this element mid
+        // double-click and the contenteditable edit would be lost.
+        if (el.isContentEditable || el.dataset.board === this._activeBoardId) return;
         this._activeBoardId = el.dataset.board;
         localStorage.setItem("hakanban_active_board", el.dataset.board);
         this._activeLabels.clear();
@@ -112,11 +117,18 @@ export class HakanbanPanel extends HTMLElement {
       el.addEventListener("blur", () => {
         el.removeAttribute("contenteditable");
         const v = el.textContent.trim();
-        const board = this._activeBoard();
+        const board = boardById(el.dataset.board);
         if (v && board && v !== board.title) this._api.updateBoard(el.dataset.board, { title: v });
+        else if (board) el.textContent = board.title; // revert empty / unchanged edits
       });
       el.addEventListener("keydown", (e) => {
         if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+        else if (e.key === "Escape") {
+          e.preventDefault();
+          const board = boardById(el.dataset.board);
+          if (board) el.textContent = board.title;
+          el.blur();
+        }
       });
     });
 

@@ -134,6 +134,16 @@ class HakanbanData:
         cards.sort(key=lambda c: c.get("order", 0))
         return cards
 
+    def cards_in_board(self, board_id: str, include_archived: bool = False) -> list[dict[str, Any]]:
+        """Every card on a board (across all columns), sorted by order."""
+        cards = [
+            c
+            for c in self.cards.values()
+            if c["board_id"] == board_id and (include_archived or not c.get("archived"))
+        ]
+        cards.sort(key=lambda c: c.get("order", 0))
+        return cards
+
     def board_payload(self, board_id: str) -> dict[str, Any]:
         """Board with columns -> cards nested, ready for the frontend."""
         board = self._require_board(board_id)

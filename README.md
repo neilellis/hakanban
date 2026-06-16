@@ -27,12 +27,15 @@ the same time.
 v1 ships the **Core + multi-line paste** scope:
 
 - **Boards** — multiple boards, each with its own background/theme and label palette.
+  Rename a board inline by double-clicking its tab.
 - **Lists / columns** — create, rename, reorder, archive.
 - **Cards** — create, edit, archive, with **markdown descriptions**.
 - **Drag and drop** — move cards within a column and between columns, and reorder columns by
   dragging their headers (native HTML5 drag-and-drop — no build step, no external library).
 - **Labels** — colour + name per board, with **filter-by-label**.
-- **Due dates** — with a due-complete checkbox.
+- **Due dates** — with a due-complete checkbox. Cards with a due date also surface on the
+  board's native HA **`calendar` entity**, so dated tasks appear in Home Assistant's Calendar
+  panel and dashboard card.
 - **Comments / activity** on a card.
 - **Multi-line paste → many cards** — paste newline-separated text into the composer and get
   one card per non-empty line, created in order in a single batched call.
@@ -110,6 +113,9 @@ works on a `todo` list works on your Kanban board:
 - **One device per board** (`identifiers={("hakanban", board_id)}`, named after the board).
 - **One `todo` list entity per column**, attached to its board device
   (`unique_id = "{board_id}_{column_id}"`).
+- **One `calendar` entity per board** (`unique_id = "{board_id}_calendar"`), attached to its
+  board device, surfacing every card with a due date as an event — point the built-in Calendar
+  card at it or open the **Calendar** panel to see your dated cards.
 
 List the column entities with `./scripts/ha states todo` and inspect one with
 `./scripts/ha get todo.<board>_<column>`.
@@ -210,7 +216,8 @@ documented in **[docs/PROTOCOL.md](docs/PROTOCOL.md)**.
 - [ ] Attachments
 - [ ] Card / board templates
 - [ ] Swimlanes
-- [ ] Calendar / timeline view
+- [x] Calendar — boards expose dated cards as a native HA `calendar` entity
+- [ ] In-panel timeline / calendar view
 - [ ] Custom fields
 - [ ] Butler-style automation rules (in-board "when X, do Y")
 
