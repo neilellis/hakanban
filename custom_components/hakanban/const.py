@@ -51,3 +51,6 @@ SIGNAL_BOARDS_UPDATED: Final = f"{DOMAIN}_boards_updated"
 # Ordering: cards/columns use a sparse integer "order"; this is the gap between
 # two freshly appended siblings so a move only rewrites one row most of the time.
 ORDER_STEP: Final = 1000
+
+# Undo/redo: how many past states to retain (snapshot-based history, store-wide).
+UNDO_HISTORY_LIMIT: Final = 50

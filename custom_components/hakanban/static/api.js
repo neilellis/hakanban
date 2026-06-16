@@ -17,6 +17,13 @@ export class HakanbanApi {
     return this._send("get");
   }
 
+  undo() {
+    return this._send("undo");
+  }
+  redo() {
+    return this._send("redo");
+  }
+
   // Streams the full payload on every change. Returns an unsubscribe function.
   subscribe(callback) {
     return this.hass.connection.subscribeMessage(callback, { type: "hakanban/subscribe" });

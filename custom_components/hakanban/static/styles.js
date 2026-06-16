@@ -41,6 +41,8 @@ export const STYLES = `
   width: 32px; height: 32px; border-radius: 6px; font-size: 1.1rem; line-height: 1;
 }
 .hk-iconbtn:hover { background: rgba(255,255,255,.34); }
+.hk-iconbtn:disabled { opacity: .4; cursor: default; }
+.hk-iconbtn:disabled:hover { background: rgba(255,255,255,.16); }
 
 .hk-board {
   flex: 1; min-height: 0; display: flex; gap: var(--hk-gap);

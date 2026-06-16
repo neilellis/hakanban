@@ -199,6 +199,42 @@ def run():
     mgr.update_board(b2["id"], title="Test (2)")  # rename to its own title
     check("rename to own title is kept", mgr.boards[b2["id"]]["title"] == "Test (2)")
 
+    # Undo / redo (store-wide snapshot history).
+    ub = mgr.create_board("Undo Board")["id"]
+    ucol = mgr.create_column(ub, "Col")["id"]
+    check("can_undo after a mutation", mgr.can_undo is True)
+    check("can_redo is false after a fresh mutation", mgr.can_redo is False)
+
+    uc = mgr.create_card(ub, ucol, "Temp card")
+    check("card present before undo", uc["id"] in mgr.cards)
+    mgr.undo()
+    check("undo removes the new card", uc["id"] not in mgr.cards)
+    check("can_redo after undo", mgr.can_redo is True)
+    mgr.redo()
+    check("redo restores the card", uc["id"] in mgr.cards)
+
+    # A brand-new mutation discards the redo stack.
+    mgr.undo()
+    check("redo available before new mutation", mgr.can_redo is True)
+    mgr.create_card(ub, ucol, "Other")
+    check("new mutation clears redo", mgr.can_redo is False)
+
+    # Undo of a delete restores the whole board (and its device/entities reconcile).
+    mgr.delete_board(ub)
+    check("board deleted", ub not in mgr.boards)
+    mgr.undo()
+    check("undo restores a deleted board", ub in mgr.boards)
+
+    # full_payload advertises availability so the panel can enable/disable buttons.
+    fp = mgr.full_payload()
+    check("payload exposes undo flags", "can_undo" in fp and "can_redo" in fp)
+
+    # Undo past the start of history is a safe no-op.
+    while mgr.can_undo:
+        mgr.undo()
+    check("undo on empty history returns False", mgr.undo() is False)
+    check("redo refills from a drained undo", mgr.can_redo is True)
+
     failed = [n for n, ok in RESULTS if not ok]
     print()
     print(f"{len(RESULTS) - len(failed)}/{len(RESULTS)} checks passed")

@@ -40,6 +40,8 @@ v1 ships the **Core + multi-line paste** scope:
 - **Multi-line paste → many cards** — paste newline-separated text into the composer and get
   one card per non-empty line, created in order in a single batched call.
 - **Search** across cards.
+- **Undo / redo** — store-wide history with toolbar buttons and `Ctrl`/`⌘`+`Z` /
+  `Ctrl`/`⌘`+`Shift`+`Z` shortcuts; reverts any change, including ones made via services or Assist.
 - **Full-page sidebar panel** (the drag-drop app, auto-registered — no manual Lovelace
   resource) **+** an **embeddable Lovelace card** for dashboards.
 

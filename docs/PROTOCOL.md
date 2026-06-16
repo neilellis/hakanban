@@ -66,11 +66,14 @@ The frontend never sees the raw store. It gets boards with columns→cards **nes
         "cards": [ { ...full card... } ]   // sorted by order, archived excluded
       }
     ]
-  }
-] }
+  } ],
+  "can_undo": true,   // is there a mutation to undo?  (store-wide history)
+  "can_redo": false   // is there an undone mutation to redo?
+}
 ```
 
-Produced by `HakanbanData.full_payload()` / `board_payload(board_id)`.
+Produced by `HakanbanData.full_payload()`; `board_payload(board_id)` produces a single board
+object (without the `can_undo`/`can_redo` flags).
 
 ## WebSocket API
 
@@ -83,6 +86,8 @@ optimistic update and reconcile on the next push.
 |------|--------|--------|
 | `hakanban/get` | — | full payload `{boards:[…]}` |
 | `hakanban/subscribe` | — | streams full payload `{boards:[…]}` immediately and on every change |
+| `hakanban/undo` | — | `{can_undo, can_redo}` — reverts the last mutation (store-wide) |
+| `hakanban/redo` | — | `{can_undo, can_redo}` — re-applies the last undone mutation |
 | `hakanban/create_board` | `title`, `background?` | board |
 | `hakanban/update_board` | `board_id`, `title?`, `background?`, `archived?` | board |
 | `hakanban/delete_board` | `board_id` | `{deleted: board_id}` |
@@ -107,6 +112,11 @@ The subscription push message body is the full payload `{ "boards": [...] }`.
 
 Board titles are kept unique: `create_board` and `update_board` append ` (n)` to the requested
 title if another board already uses it (so each board — and its device — has a distinct name).
+
+Undo/redo is **store-wide** and snapshot-based: every mutation (from the panel, Lovelace card,
+`hakanban.*`/`todo.*` services or Assist) snapshots the whole document first, so any single
+action can be reverted regardless of which client made it. A new mutation clears the redo stack;
+history is capped at `UNDO_HISTORY_LIMIT` (50) states and reset to empty on load.
 
 ## HA bus events (for automations)
 

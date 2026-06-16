@@ -14,8 +14,10 @@ The todo entities and the websocket API are thin readers/writers on top of this.
 
 from __future__ import annotations
 
+import copy
+import functools
 import re
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -34,8 +36,11 @@ from .const import (
     SIGNAL_BOARDS_UPDATED,
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
+    UNDO_HISTORY_LIMIT,
 )
 from .store import HakanbanStore, empty_data
+
+_T = TypeVar("_T")
 
 
 def _uid() -> str:
@@ -44,6 +49,34 @@ def _uid() -> str:
 
 def _now() -> str:
     return dt_util.utcnow().isoformat()
+
+
+def _undoable(method: Callable[..., _T]) -> Callable[..., _T]:
+    """Snapshot the whole document before a mutation so it can be undone.
+
+    The snapshot is pushed onto the undo stack *before* the wrapped method runs
+    (so the live update it dispatches already reports ``can_undo``), and rolled
+    back if the method raises. Any new mutation clears the redo stack. Undo/redo
+    themselves are deliberately *not* wrapped.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self: "HakanbanData", *args: Any, **kwargs: Any) -> _T:
+        snapshot = copy.deepcopy(self._data)
+        saved_redo = self._redo_stack
+        self._undo_stack.append(snapshot)
+        self._redo_stack = []
+        try:
+            result = method(self, *args, **kwargs)
+        except Exception:
+            self._undo_stack.pop()
+            self._redo_stack = saved_redo
+            raise
+        if len(self._undo_stack) > UNDO_HISTORY_LIMIT:
+            self._undo_stack.pop(0)
+        return result
+
+    return wrapper
 
 
 class HakanbanError(Exception):
@@ -57,6 +90,8 @@ class HakanbanData:
         self.hass = hass
         self._store = store
         self._data: dict[str, Any] = empty_data()
+        self._undo_stack: list[dict[str, Any]] = []
+        self._redo_stack: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------ load
     async def async_load(self) -> None:
@@ -64,6 +99,36 @@ class HakanbanData:
         if not self._data["boards"]:
             # First run: seed a starter board so the panel isn't empty.
             self.create_board("My Board", seed=True)
+        # The loaded/seeded state is the baseline — nothing to undo into yet.
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+
+    # ------------------------------------------------------------------ undo
+    @property
+    def can_undo(self) -> bool:
+        return bool(self._undo_stack)
+
+    @property
+    def can_redo(self) -> bool:
+        return bool(self._redo_stack)
+
+    def undo(self) -> bool:
+        """Revert the most recent mutation. Returns ``False`` if nothing to undo."""
+        if not self._undo_stack:
+            return False
+        self._redo_stack.append(copy.deepcopy(self._data))
+        self._data = self._undo_stack.pop()
+        self._commit(None, EVENT_BOARD_CHANGED, {"action": "undo"})
+        return True
+
+    def redo(self) -> bool:
+        """Re-apply the most recently undone mutation. ``False`` if nothing to redo."""
+        if not self._redo_stack:
+            return False
+        self._undo_stack.append(copy.deepcopy(self._data))
+        self._data = self._redo_stack.pop()
+        self._commit(None, EVENT_BOARD_CHANGED, {"action": "redo"})
+        return True
 
     async def async_save_now(self) -> None:
         await self._store.async_save(self._data)
@@ -169,7 +234,9 @@ class HakanbanData:
                 self.board_payload(bid)
                 for bid, b in self.boards.items()
                 if not b.get("archived")
-            ]
+            ],
+            "can_undo": self.can_undo,
+            "can_redo": self.can_redo,
         }
 
     # ---------------------------------------------------------------- boards
@@ -187,6 +254,7 @@ class HakanbanData:
             n += 1
         return f"{base} ({n})"
 
+    @_undoable
     def create_board(
         self, title: str, background: str | None = None, seed: bool = False
     ) -> dict[str, Any]:
@@ -208,6 +276,7 @@ class HakanbanData:
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "created"})
         return board
 
+    @_undoable
     def update_board(self, board_id: str, **changes: Any) -> dict[str, Any]:
         board = self._require_board(board_id)
         if changes.get("title") is not None:
@@ -218,6 +287,7 @@ class HakanbanData:
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "updated"})
         return board
 
+    @_undoable
     def delete_board(self, board_id: str) -> None:
         self._require_board(board_id)
         for card_id in [cid for cid, c in self.cards.items() if c["board_id"] == board_id]:
@@ -237,12 +307,14 @@ class HakanbanData:
         board["columns"].append(column)
         return column
 
+    @_undoable
     def create_column(self, board_id: str, title: str) -> dict[str, Any]:
         board = self._require_board(board_id)
         column = self._add_column(board, title)
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "column_created"})
         return column
 
+    @_undoable
     def update_column(self, board_id: str, column_id: str, **changes: Any) -> dict[str, Any]:
         board = self._require_board(board_id)
         column = self._column(board, column_id)
@@ -252,6 +324,7 @@ class HakanbanData:
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "column_updated"})
         return column
 
+    @_undoable
     def delete_column(self, board_id: str, column_id: str) -> None:
         board = self._require_board(board_id)
         column = self._column(board, column_id)
@@ -260,6 +333,7 @@ class HakanbanData:
         board["columns"].remove(column)
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "column_deleted"})
 
+    @_undoable
     def move_column(self, board_id: str, column_id: str, position: int) -> None:
         board = self._require_board(board_id)
         column = self._column(board, column_id)
@@ -300,6 +374,7 @@ class HakanbanData:
         self.cards[card_id] = card
         return card
 
+    @_undoable
     def create_card(self, board_id: str, column_id: str, title: str, **fields: Any) -> dict[str, Any]:
         board = self._require_board(board_id)
         self._column(board, column_id)  # validate
@@ -310,6 +385,7 @@ class HakanbanData:
         )
         return card
 
+    @_undoable
     def create_cards_bulk(self, board_id: str, column_id: str, titles: list[str]) -> list[dict[str, Any]]:
         """Multi-line paste: one card per non-empty title, preserving order."""
         board = self._require_board(board_id)
@@ -329,6 +405,7 @@ class HakanbanData:
             self._commit(board_id)
         return created
 
+    @_undoable
     def update_card(self, card_id: str, **fields: Any) -> dict[str, Any]:
         card = self._require_card(card_id)
         was_completed = card.get("status") == STATUS_COMPLETED
@@ -353,6 +430,7 @@ class HakanbanData:
         )
         return card
 
+    @_undoable
     def move_card(
         self,
         card_id: str,
@@ -389,6 +467,7 @@ class HakanbanData:
         )
         return card
 
+    @_undoable
     def delete_card(self, card_id: str) -> None:
         card = self._require_card(card_id)
         board_id = card["board_id"]
@@ -399,6 +478,7 @@ class HakanbanData:
         )
 
     # ---------------------------------------------------------------- labels
+    @_undoable
     def create_label(self, board_id: str, name: str, color: str) -> dict[str, Any]:
         board = self._require_board(board_id)
         label = {"id": _uid(), "name": name or "", "color": color}
@@ -406,6 +486,7 @@ class HakanbanData:
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "label_created"})
         return label
 
+    @_undoable
     def update_label(self, board_id: str, label_id: str, **changes: Any) -> dict[str, Any]:
         board = self._require_board(board_id)
         for label in board.get("label_defs", []):
@@ -417,6 +498,7 @@ class HakanbanData:
                 return label
         raise HakanbanError(f"Unknown label {label_id}")
 
+    @_undoable
     def delete_label(self, board_id: str, label_id: str) -> None:
         board = self._require_board(board_id)
         board["label_defs"] = [l for l in board.get("label_defs", []) if l["id"] != label_id]
@@ -426,6 +508,7 @@ class HakanbanData:
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "label_deleted"})
 
     # -------------------------------------------------------------- comments
+    @_undoable
     def add_comment(self, card_id: str, text: str, author: str | None = None) -> dict[str, Any]:
         card = self._require_card(card_id)
         comment = {"id": _uid(), "author": author or "Home Assistant", "ts": _now(), "text": text}
@@ -438,6 +521,7 @@ class HakanbanData:
         return comment
 
     # ------------------------------------------------------------ checklists
+    @_undoable
     def add_checklist(self, card_id: str, title: str) -> dict[str, Any]:
         card = self._require_card(card_id)
         checklist = {"id": _uid(), "title": title or "Checklist", "items": []}
@@ -445,6 +529,7 @@ class HakanbanData:
         self._commit(card["board_id"])
         return checklist
 
+    @_undoable
     def add_check_item(self, card_id: str, checklist_id: str, text: str) -> dict[str, Any]:
         card = self._require_card(card_id)
         for checklist in card.get("checklists", []):
@@ -455,6 +540,7 @@ class HakanbanData:
                 return item
         raise HakanbanError(f"Unknown checklist {checklist_id}")
 
+    @_undoable
     def toggle_check_item(self, card_id: str, checklist_id: str, item_id: str, done: bool) -> None:
         card = self._require_card(card_id)
         for checklist in card.get("checklists", []):

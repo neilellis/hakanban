@@ -73,6 +73,21 @@ def ws_get(hass, connection, msg, manager: HakanbanData):
     return manager.full_payload()
 
 
+# ------------------------------------------------------------------- undo/redo
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/undo"})
+@_guard
+def ws_undo(hass, connection, msg, manager: HakanbanData):
+    manager.undo()
+    return {"can_undo": manager.can_undo, "can_redo": manager.can_redo}
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/redo"})
+@_guard
+def ws_redo(hass, connection, msg, manager: HakanbanData):
+    manager.redo()
+    return {"can_undo": manager.can_undo, "can_redo": manager.can_redo}
+
+
 # ------------------------------------------------------------------------ boards
 @websocket_api.websocket_command(
     {
@@ -357,6 +372,8 @@ def ws_toggle_check_item(hass, connection, msg, manager: HakanbanData):
 _COMMANDS = (
     ws_subscribe,
     ws_get,
+    ws_undo,
+    ws_redo,
     ws_create_board,
     ws_update_board,
     ws_delete_board,

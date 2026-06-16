@@ -44,10 +44,36 @@ export class HakanbanPanel extends HTMLElement {
 
   disconnectedCallback() {
     if (this._unsub) this._unsub.then((u) => u && u()).catch(() => {});
+    if (this._onKeydown) {
+      window.removeEventListener("keydown", this._onKeydown);
+      this._onKeydown = null;
+    }
+  }
+
+  // Ctrl/⌘+Z = undo, Ctrl/⌘+Shift+Z or Ctrl+Y = redo. Skipped while typing in a
+  // field so the browser's native text undo keeps working.
+  _setupKeyboard() {
+    if (this._onKeydown) return;
+    this._onKeydown = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = (e.key || "").toLowerCase();
+      if (key !== "z" && key !== "y") return;
+      const target = (e.composedPath && e.composedPath()[0]) || e.target;
+      const tag = (target && target.tagName) || "";
+      if (target && (target.isContentEditable || /^(input|textarea|select)$/i.test(tag))) return;
+      e.preventDefault();
+      if (key === "y" || (key === "z" && e.shiftKey)) {
+        if (this._data?.can_redo) this._api.redo();
+      } else if (this._data?.can_undo) {
+        this._api.undo();
+      }
+    };
+    window.addEventListener("keydown", this._onKeydown);
   }
 
   async _start() {
     this._build();
+    this._setupKeyboard();
     this._unsub = this._api.subscribe((payload) => {
       this._data = payload;
       if (!this._activeBoardId || !payload.boards.find((b) => b.id === this._activeBoardId)) {
@@ -86,16 +112,23 @@ export class HakanbanPanel extends HTMLElement {
           `<button class="hk-tab ${b.id === this._activeBoardId ? "active" : ""}" data-board="${b.id}" data-tabtitle title="Double-click to rename">${escapeHtml(b.title)}</button>`
       )
       .join("");
+    const canUndo = !!this._data?.can_undo;
+    const canRedo = !!this._data?.can_redo;
     const tb = this.shadowRoot.getElementById("toolbar");
     tb.innerHTML = `
       <span class="hk-title">📋 Hakanban</span>
       <div class="hk-board-tabs">${tabs}
         <button class="hk-iconbtn" id="add-board" title="New board">+</button>
       </div>
+      <button class="hk-iconbtn" id="undo-btn" title="Undo (Ctrl/⌘+Z)" ${canUndo ? "" : "disabled"}>↶</button>
+      <button class="hk-iconbtn" id="redo-btn" title="Redo (Ctrl/⌘+Shift+Z)" ${canRedo ? "" : "disabled"}>↷</button>
       <input class="hk-search" id="search" type="search" placeholder="Search cards…" value="${escapeHtml(this._query)}">
       <button class="hk-iconbtn" id="filter-btn" title="Filter by label">⚑</button>
       <button class="hk-iconbtn" id="bg-btn" title="Board background">🎨</button>
       <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>`;
+
+    tb.querySelector("#undo-btn").addEventListener("click", () => this._api.undo());
+    tb.querySelector("#redo-btn").addEventListener("click", () => this._api.redo());
 
     tb.querySelectorAll("[data-board]").forEach((el) => {
       el.addEventListener("click", () => {
