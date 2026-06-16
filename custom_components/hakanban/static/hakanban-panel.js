@@ -109,7 +109,7 @@ export class HakanbanPanel extends HTMLElement {
     const tabs = boards
       .map(
         (b) =>
-          `<button class="hk-tab ${b.id === this._activeBoardId ? "active" : ""}" data-board="${b.id}" data-tabtitle title="Double-click to rename">${escapeHtml(b.title)}</button>`
+          `<button class="hk-tab ${b.id === this._activeBoardId ? "active" : ""}" data-board="${b.id}">${escapeHtml(b.title)}</button>`
       )
       .join("");
     const canUndo = !!this._data?.can_undo;
@@ -125,6 +125,7 @@ export class HakanbanPanel extends HTMLElement {
       <input class="hk-search" id="search" type="search" placeholder="Search cards…" value="${escapeHtml(this._query)}">
       <button class="hk-iconbtn" id="filter-btn" title="Filter by label">⚑</button>
       <button class="hk-iconbtn" id="bg-btn" title="Board background">🎨</button>
+      <button class="hk-iconbtn" id="edit-board" title="Rename board">✎</button>
       <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>`;
 
     tb.querySelector("#undo-btn").addEventListener("click", () => this._api.undo());
@@ -132,8 +133,7 @@ export class HakanbanPanel extends HTMLElement {
 
     tb.querySelectorAll("[data-board]").forEach((el) => {
       el.addEventListener("click", () => {
-        // Skip the re-render when re-selecting the active tab so a double-click
-        // can register (a re-render would swap this element mid double-click).
+        // Nothing to do when re-selecting the active tab; skip the re-render.
         if (el.dataset.board === this._activeBoardId) return;
         this._activeBoardId = el.dataset.board;
         localStorage.setItem("hakanban_active_board", el.dataset.board);
@@ -141,16 +141,16 @@ export class HakanbanPanel extends HTMLElement {
         this._renderToolbar();
         this._renderBoard();
       });
-      el.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        this._openRenameDialog(el.dataset.board);
-      });
     });
 
     tb.querySelector("#add-board").addEventListener("click", async () => {
       const board = await this._api.createBoard("New Board");
       this._activeBoardId = board.id;
       localStorage.setItem("hakanban_active_board", board.id);
+    });
+    tb.querySelector("#edit-board").addEventListener("click", () => {
+      const board = this._activeBoard();
+      if (board) this._openRenameDialog(board.id);
     });
     tb.querySelector("#del-board").addEventListener("click", () => {
       const board = this._activeBoard();
@@ -219,7 +219,8 @@ export class HakanbanPanel extends HTMLElement {
     if (this._boardEl) this._boardEl.filter = { query: this._query, labels: this._activeLabels };
   }
 
-  // Modal rename — avoids inline-edit clashes with tab click/drag/re-render.
+  // Modal rename, opened from the toolbar's ✎ button (keeps tab clicks for
+  // switching boards only, and avoids inline-edit clashes with re-render).
   _openRenameDialog(boardId) {
     const board = (this._data?.boards || []).find((b) => b.id === boardId);
     if (!board) return;
