@@ -32,7 +32,6 @@ export const STYLES = `
   font-size: .9rem; white-space: nowrap;
 }
 .hk-tab.active { background: rgba(255,255,255,.38); font-weight: 600; }
-.hk-tab[contenteditable="true"] { background: rgba(255,255,255,.5); outline: 1px solid #fff; cursor: text; }
 .hk-toolbar input.hk-search {
   padding: 6px 10px; border-radius: 6px; border: 0; min-width: 160px;
   background: rgba(255,255,255,.9); color: #172b4d;

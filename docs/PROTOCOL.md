@@ -105,6 +105,9 @@ optimistic update and reconcile on the next push.
 
 The subscription push message body is the full payload `{ "boards": [...] }`.
 
+Board titles are kept unique: `create_board` and `update_board` append ` (n)` to the requested
+title if another board already uses it (so each board — and its device — has a distinct name).
+
 ## HA bus events (for automations)
 
 | event | data |

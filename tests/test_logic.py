@@ -189,6 +189,16 @@ def run():
           {c2["id"], c3["id"]}.issubset(board_card_ids)
           and all(c["id"] in board_card_ids for c in pasted))
 
+    # Board titles disambiguate so two boards never share a name.
+    b2 = mgr.create_board("Test")        # clashes with the seeded "Test"
+    b3 = mgr.create_board("Test")        # clashes with "Test" and "Test (2)"
+    check("duplicate board title -> (2)", b2["title"] == "Test (2)")
+    check("third duplicate -> (3)", b3["title"] == "Test (3)")
+    mgr.update_board(b3["id"], title="Test")  # rename onto a clashing name
+    check("rename onto clash disambiguates", mgr.boards[b3["id"]]["title"] == "Test (3)")
+    mgr.update_board(b2["id"], title="Test (2)")  # rename to its own title
+    check("rename to own title is kept", mgr.boards[b2["id"]]["title"] == "Test (2)")
+
     failed = [n for n, ok in RESULTS if not ok]
     print()
     print(f"{len(RESULTS) - len(failed)}/{len(RESULTS)} checks passed")

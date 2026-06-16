@@ -97,38 +97,20 @@ export class HakanbanPanel extends HTMLElement {
       <button class="hk-iconbtn" id="bg-btn" title="Board background">🎨</button>
       <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>`;
 
-    const boardById = (id) => (this._data?.boards || []).find((b) => b.id === id);
     tb.querySelectorAll("[data-board]").forEach((el) => {
       el.addEventListener("click", () => {
-        // While renaming, or when re-selecting the already-active tab, skip the
-        // re-render: rebuilding the toolbar would replace this element mid
-        // double-click and the contenteditable edit would be lost.
-        if (el.isContentEditable || el.dataset.board === this._activeBoardId) return;
+        // Skip the re-render when re-selecting the active tab so a double-click
+        // can register (a re-render would swap this element mid double-click).
+        if (el.dataset.board === this._activeBoardId) return;
         this._activeBoardId = el.dataset.board;
         localStorage.setItem("hakanban_active_board", el.dataset.board);
         this._activeLabels.clear();
         this._renderToolbar();
         this._renderBoard();
       });
-      el.addEventListener("dblclick", () => {
-        el.setAttribute("contenteditable", "true");
-        el.focus();
-      });
-      el.addEventListener("blur", () => {
-        el.removeAttribute("contenteditable");
-        const v = el.textContent.trim();
-        const board = boardById(el.dataset.board);
-        if (v && board && v !== board.title) this._api.updateBoard(el.dataset.board, { title: v });
-        else if (board) el.textContent = board.title; // revert empty / unchanged edits
-      });
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); el.blur(); }
-        else if (e.key === "Escape") {
-          e.preventDefault();
-          const board = boardById(el.dataset.board);
-          if (board) el.textContent = board.title;
-          el.blur();
-        }
+      el.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        this._openRenameDialog(el.dataset.board);
       });
     });
 
@@ -202,6 +184,46 @@ export class HakanbanPanel extends HTMLElement {
 
   _applyFilter() {
     if (this._boardEl) this._boardEl.filter = { query: this._query, labels: this._activeLabels };
+  }
+
+  // Modal rename — avoids inline-edit clashes with tab click/drag/re-render.
+  _openRenameDialog(boardId) {
+    const board = (this._data?.boards || []).find((b) => b.id === boardId);
+    if (!board) return;
+    this.shadowRoot.querySelector(".hk-dialog-back")?.remove(); // one at a time
+
+    const back = document.createElement("div");
+    back.className = "hk-modal-back hk-dialog-back";
+    back.innerHTML = `
+      <div class="hk-modal hk-dialog" role="dialog" aria-modal="true" style="width:min(420px,100%)">
+        <h2>Rename board</h2>
+        <div class="hk-row" style="margin-top:12px">
+          <input type="text" id="hk-rename-input" style="flex:1" value="${escapeHtml(board.title)}" maxlength="120">
+        </div>
+        <div class="hk-modal-actions">
+          <span class="grow"></span>
+          <button class="hk-btn secondary" id="hk-rename-cancel">Cancel</button>
+          <button class="hk-btn" id="hk-rename-save">Save</button>
+        </div>
+      </div>`;
+    this.shadowRoot.appendChild(back);
+
+    const input = back.querySelector("#hk-rename-input");
+    const close = () => back.remove();
+    const save = () => {
+      const v = input.value.trim();
+      if (v && v !== board.title) this._api.updateBoard(boardId, { title: v });
+      close();
+    };
+    back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
+    back.querySelector("#hk-rename-cancel").addEventListener("click", close);
+    back.querySelector("#hk-rename-save").addEventListener("click", save);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); save(); }
+      else if (e.key === "Escape") { e.preventDefault(); close(); }
+    });
+    input.focus();
+    input.select();
   }
 
   _renderBoard() {

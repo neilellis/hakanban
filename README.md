@@ -27,7 +27,7 @@ the same time.
 v1 ships the **Core + multi-line paste** scope:
 
 - **Boards** — multiple boards, each with its own background/theme and label palette.
-  Rename a board inline by double-clicking its tab.
+  Double-click a board tab to rename it in a dialog; titles are kept unique automatically.
 - **Lists / columns** — create, rename, reorder, archive.
 - **Cards** — create, edit, archive, with **markdown descriptions**.
 - **Drag and drop** — move cards within a column and between columns, and reorder columns by

@@ -14,6 +14,7 @@ The todo entities and the websocket API are thin readers/writers on top of this.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -172,13 +173,27 @@ class HakanbanData:
         }
 
     # ---------------------------------------------------------------- boards
+    def _unique_board_title(self, title: str, exclude_id: str | None = None) -> str:
+        """Return ``title``, appending `` (n)`` so it doesn't clash with another board."""
+        title = (title or "").strip() or "Untitled board"
+        existing = {
+            b["title"] for bid, b in self.boards.items() if bid != exclude_id
+        }
+        if title not in existing:
+            return title
+        base = re.sub(r"\s*\(\d+\)$", "", title)  # drop any trailing " (n)"
+        n = 2
+        while f"{base} ({n})" in existing:
+            n += 1
+        return f"{base} ({n})"
+
     def create_board(
         self, title: str, background: str | None = None, seed: bool = False
     ) -> dict[str, Any]:
         board_id = _uid()
         board = {
             "id": board_id,
-            "title": title or "Untitled board",
+            "title": self._unique_board_title(title),
             "background": background,
             "archived": False,
             "label_defs": [dict(label) for label in DEFAULT_LABELS],
@@ -195,7 +210,9 @@ class HakanbanData:
 
     def update_board(self, board_id: str, **changes: Any) -> dict[str, Any]:
         board = self._require_board(board_id)
-        for key in ("title", "background", "archived"):
+        if changes.get("title") is not None:
+            board["title"] = self._unique_board_title(changes["title"], exclude_id=board_id)
+        for key in ("background", "archived"):
             if key in changes and changes[key] is not None:
                 board[key] = changes[key]
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "updated"})
