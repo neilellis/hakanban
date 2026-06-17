@@ -112,12 +112,10 @@ def ws_create_board(hass, connection, msg, manager: HakanbanData):
 )
 @_guard
 def ws_update_board(hass, connection, msg, manager: HakanbanData):
-    return manager.update_board(
-        msg["board_id"],
-        title=msg.get("title"),
-        background=msg.get("background"),
-        archived=msg.get("archived"),
-    )
+    # Only forward keys the client actually sent, so an absent `background`
+    # isn't conflated with an explicit `null` (which clears the background).
+    changes = {k: msg[k] for k in ("title", "background", "archived") if k in msg}
+    return manager.update_board(msg["board_id"], **changes)
 
 
 @websocket_api.websocket_command(

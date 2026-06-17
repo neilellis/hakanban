@@ -17,6 +17,11 @@ export const STYLES = `
 
 .hk-root { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
+/* The board view fills all available height so its background covers the whole
+   area, not just the columns. In the Lovelace card (host has no fixed height)
+   this resolves to content height — harmless. */
+:host(hakanban-board) { display: flex; flex-direction: column; height: 100%; }
+
 .hk-toolbar {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 16px; flex-wrap: wrap;

@@ -281,9 +281,10 @@ class HakanbanData:
         board = self._require_board(board_id)
         if changes.get("title") is not None:
             board["title"] = self._unique_board_title(changes["title"], exclude_id=board_id)
-        for key in ("background", "archived"):
-            if key in changes and changes[key] is not None:
-                board[key] = changes[key]
+        if "background" in changes:
+            board["background"] = changes["background"]  # None clears it (no background)
+        if changes.get("archived") is not None:
+            board["archived"] = changes["archived"]
         self._commit(board_id, EVENT_BOARD_CHANGED, {"board_id": board_id, "action": "updated"})
         return board
 

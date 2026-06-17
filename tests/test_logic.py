@@ -199,6 +199,14 @@ def run():
     mgr.update_board(b2["id"], title="Test (2)")  # rename to its own title
     check("rename to own title is kept", mgr.boards[b2["id"]]["title"] == "Test (2)")
 
+    # Background can be set and then cleared back to "no background" (null).
+    mgr.update_board(bid, background="#0079bf")
+    check("background set", mgr.boards[bid]["background"] == "#0079bf")
+    mgr.update_board(bid, title="Renamed only")  # absent background -> untouched
+    check("absent background left unchanged", mgr.boards[bid]["background"] == "#0079bf")
+    mgr.update_board(bid, background=None)  # explicit null -> cleared
+    check("background cleared by null", mgr.boards[bid]["background"] is None)
+
     # Undo / redo (store-wide snapshot history).
     ub = mgr.create_board("Undo Board")["id"]
     ucol = mgr.create_column(ub, "Col")["id"]
