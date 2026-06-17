@@ -17,6 +17,12 @@ export const STYLES = `
 
 .hk-root { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
+/* The full-page panel fills the viewport. HA mounts the custom panel element
+   with no intrinsic height, so without this the whole app collapses to content
+   height. The panel renders its own toolbar (no HA header above it), so the
+   panel area is the full viewport height. */
+:host(hakanban-panel) { display: block; height: 100vh; }
+
 /* The board view fills all available height so its background covers the whole
    area, not just the columns. In the Lovelace card (host has no fixed height)
    this resolves to content height — harmless. */
