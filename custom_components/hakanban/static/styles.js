@@ -85,12 +85,12 @@ export const STYLES = `
 }
 .hk-card.dragging { opacity: .4; }
 .hk-card.completed .hk-card-title { text-decoration: line-through; color: var(--hk-subtle); }
-.hk-card-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.hk-card-labels { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
 .hk-label {
-  height: 8px; min-width: 38px; border-radius: 4px; font-size: .65rem;
-  display: inline-flex; align-items: center; padding: 0 6px; overflow: hidden; line-height: 1;
+  border-radius: 999px; font-size: .67rem; font-weight: 600; letter-spacing: .01em;
+  display: inline-flex; align-items: center; padding: 2px 9px; line-height: 1.35;
+  white-space: nowrap; overflow: hidden;
 }
-.hk-card.labels-expanded .hk-label { height: 16px; }
 .hk-card-title { font-size: .9rem; line-height: 1.3; white-space: pre-wrap; word-break: break-word; }
 .hk-card-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; color: var(--hk-subtle); font-size: .72rem; align-items: center; }
 .hk-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: 4px; }
