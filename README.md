@@ -20,6 +20,8 @@ automations** — the one thing Trello can't do. Move a card to *Done* and fire 
 ring the doorbell and drop a card into *Follow up*. It's a board and an automation surface at
 the same time.
 
+![A Hakanban board running inside the Home Assistant panel](docs/example-board.jpg)
+
 ---
 
 ## Features
