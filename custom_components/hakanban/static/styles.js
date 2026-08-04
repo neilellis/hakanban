@@ -123,12 +123,26 @@ export const STYLES = `
 .hk-empty { padding: 40px; text-align: center; color: var(--hk-subtle); }
 
 /* ---- modal ---- */
+/* Match the frontend's own dialog scrim, which dims the page with a backdrop
+   filter instead of painting a flat black panel over it. Themes that switch the
+   scrim off then get a genuinely clear backdrop, and themes that leave it alone
+   get the same treatment as every built-in dialog. */
 .hk-modal-back {
-  position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9; display: flex;
+  position: fixed; inset: 0; background: transparent; z-index: 9; display: flex;
+  -webkit-backdrop-filter: var(--ha-dialog-scrim-backdrop-filter, brightness(68%));
+  backdrop-filter: var(--ha-dialog-scrim-backdrop-filter, brightness(68%));
   align-items: flex-start; justify-content: center; padding: 5vh 16px; overflow-y: auto;
 }
+/* Follow the theme's dialog surface, not the card surface. Themes are free to
+   make cards translucent, and many do; they then pair that with a backdrop
+   filter on dialogs so a dialog stays readable over whatever is behind it.
+   Taking the card background alone gives us the translucency without the
+   filter, and the board shows straight through the modal. */
 .hk-modal {
-  background: var(--hk-card-bg); color: var(--hk-text); width: min(720px, 100%);
+  background: var(--ha-dialog-surface-background, var(--hk-card-bg));
+  -webkit-backdrop-filter: var(--ha-dialog-surface-backdrop-filter, none);
+  backdrop-filter: var(--ha-dialog-surface-backdrop-filter, none);
+  color: var(--hk-text); width: min(720px, 100%);
   border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,.4); padding: 20px 24px;
 }
 .hk-modal h2 { margin: 0 0 4px; font-size: 1.25rem; display: flex; gap: 8px; align-items: flex-start; }
