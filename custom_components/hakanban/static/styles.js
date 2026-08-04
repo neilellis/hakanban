@@ -127,8 +127,16 @@ export const STYLES = `
   position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9; display: flex;
   align-items: flex-start; justify-content: center; padding: 5vh 16px; overflow-y: auto;
 }
+/* Follow the theme's dialog surface, not the card surface. Themes are free to
+   make cards translucent, and many do; they then pair that with a backdrop
+   filter on dialogs so a dialog stays readable over whatever is behind it.
+   Taking the card background alone gives us the translucency without the
+   filter, and the board shows straight through the modal. */
 .hk-modal {
-  background: var(--hk-card-bg); color: var(--hk-text); width: min(720px, 100%);
+  background: var(--ha-dialog-surface-background, var(--hk-card-bg));
+  -webkit-backdrop-filter: var(--ha-dialog-surface-backdrop-filter, none);
+  backdrop-filter: var(--ha-dialog-surface-backdrop-filter, none);
+  color: var(--hk-text); width: min(720px, 100%);
   border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,.4); padding: 20px 24px;
 }
 .hk-modal h2 { margin: 0 0 4px; font-size: 1.25rem; display: flex; gap: 8px; align-items: flex-start; }
