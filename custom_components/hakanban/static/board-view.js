@@ -252,6 +252,12 @@ export class HakanbanBoard extends HTMLElement {
         if (v && col && v !== col.title) api.updateColumn(boardId, el.dataset.coltitle, { title: v });
       });
       el.addEventListener("keydown", (e) => {
+        // The board runs inside the Home Assistant frontend, which binds bare
+        // letter shortcuts (a, c, d, e, m) on window. Its guard exempts <input>
+        // and <textarea> but not contenteditable, so a rename opens the Assist
+        // dialog or the quick bar mid-word, and the resulting blur commits the
+        // partial title. Keep our keystrokes out of that handler.
+        e.stopPropagation();
         if (e.key === "Enter") { e.preventDefault(); el.blur(); }
       });
     });
