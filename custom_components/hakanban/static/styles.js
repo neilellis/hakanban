@@ -123,8 +123,14 @@ export const STYLES = `
 .hk-empty { padding: 40px; text-align: center; color: var(--hk-subtle); }
 
 /* ---- modal ---- */
+/* Match the frontend's own dialog scrim, which dims the page with a backdrop
+   filter instead of painting a flat black panel over it. Themes that switch the
+   scrim off then get a genuinely clear backdrop, and themes that leave it alone
+   get the same treatment as every built-in dialog. */
 .hk-modal-back {
-  position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9; display: flex;
+  position: fixed; inset: 0; background: transparent; z-index: 9; display: flex;
+  -webkit-backdrop-filter: var(--ha-dialog-scrim-backdrop-filter, brightness(68%));
+  backdrop-filter: var(--ha-dialog-scrim-backdrop-filter, brightness(68%));
   align-items: flex-start; justify-content: center; padding: 5vh 16px; overflow-y: auto;
 }
 /* Follow the theme's dialog surface, not the card surface. Themes are free to
