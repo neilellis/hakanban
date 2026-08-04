@@ -29,18 +29,33 @@ class HakanbanCard extends HTMLElement {
     if (!this._api) {
       this._api = new HakanbanApi(hass);
       this._build();
-      this._unsub = this._api.subscribe((payload) => {
-        this._data = payload;
-        this._update();
-      });
+      this._subscribe();
     } else {
       this._api.setHass(hass);
       if (this._boardEl) this._boardEl.hass = hass;
     }
   }
 
+  _subscribe() {
+    if (!this._api || this._unsub) return;
+    this._unsub = this._api.subscribe((payload) => {
+      this._data = payload;
+      this._update();
+    });
+  }
+
+  connectedCallback() {
+    // Lovelace detaches and re-attaches cards on view/tab switches. Without this
+    // the subscription torn down in disconnectedCallback() is never restored and
+    // the board silently stops live-updating until a full page reload.
+    this._subscribe();
+  }
+
   disconnectedCallback() {
-    if (this._unsub) this._unsub.then((u) => u && u()).catch(() => {});
+    if (!this._unsub) return;
+    const unsub = this._unsub;
+    this._unsub = null;
+    unsub.then((u) => u && u()).catch(() => {});
   }
 
   _resolveBoard() {
