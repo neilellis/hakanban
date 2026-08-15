@@ -26,7 +26,6 @@ export function cardHtml(card, labelById, opts) {
     { done: 0, total: 0 }
   );
   if (checks.total) badges.push(`<span class="hk-badge">☑ ${checks.done}/${checks.total}</span>`);
-  if (opts.showAssignees && (card.assignees || []).length) badges.push(`<span class="hk-badge">👤 ${card.assignees.length}</span>`);
 
   const checklistHtml = (opts.showChecklists && checks.total)
     ? checklistItemsHtml(card)

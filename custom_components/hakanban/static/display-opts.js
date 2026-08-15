@@ -20,7 +20,6 @@ export const DISPLAY_OPTS = [
     { key: "commentShowDate", label: "Date", default: true },
     { key: "commentShowTime", label: "Time", default: false },
   ]},
-  { key: "showAssignees", label: "Assignees", default: true },
   { key: "compact", label: "Compact mode (smaller cards, less padding)", default: false },
 ];
 
