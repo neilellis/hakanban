@@ -155,6 +155,9 @@ def run():
     mgr.move_card(c1["id"], todo, user="Alice")
     check("auto-comment uses the provided user name",
           mgr.cards[c1["id"]]["comments"][-1]["author"] == "Alice")
+    check("auto-comment stores structured move_from/move_to",
+          "move_from" in mgr.cards[c1["id"]]["comments"][-1]
+          and "move_to" in mgr.cards[c1["id"]]["comments"][-1])
     comments_before = len(mgr.cards[c3["id"]].get("comments", []))
     mgr.move_card(c3["id"], todo, position=2)  # reorder within 'todo'
     check("reorder within column adds no comment",

@@ -463,6 +463,8 @@ class HakanbanData:
                     "author": user or "Home Assistant",
                     "ts": _now(),
                     "text": f"Moved from {from_label} to {to_label}",
+                    "move_from": from_label,
+                    "move_to": to_label,
                 }
             )
 
