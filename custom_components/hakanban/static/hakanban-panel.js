@@ -5,7 +5,7 @@ import { STYLES } from "./styles.js";
 import { HakanbanApi } from "./api.js";
 import { escapeHtml, contrastText, debounce } from "./util.js";
 import { loadDisplayOpts } from "./display-opts.js";
-import { openRenameDialog, openOptionsDialog } from "./dialogs.js";
+import { openOptionsDialog } from "./dialogs.js";
 import "./board-view.js";
 
 export class HakanbanPanel extends HTMLElement {
@@ -121,9 +121,8 @@ export class HakanbanPanel extends HTMLElement {
       <button class="hk-iconbtn" id="redo-btn" title="Redo (Ctrl/⌘+Shift+Z)" ${canRedo ? "" : "disabled"}>↷</button>
       <input class="hk-search" id="search" type="search" placeholder="Search cards…" value="${escapeHtml(this._query)}">
       <button class="hk-iconbtn" id="filter-btn" title="Filter by label">⚑</button>
-      <button class="hk-iconbtn" id="edit-board" title="Rename board">✎</button>
       <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>
-      <button class="hk-iconbtn" id="opts-btn" title="Display options">⚙</button>`;
+      <button class="hk-iconbtn" id="opts-btn" title="Board options">⚙</button>`;
 
     tb.querySelector("#undo-btn").addEventListener("click", () => this._api.undo());
     tb.querySelector("#redo-btn").addEventListener("click", () => this._api.redo());

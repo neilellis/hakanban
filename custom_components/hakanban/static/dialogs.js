@@ -12,51 +12,14 @@ const BACKGROUNDS = [
   "linear-gradient(135deg,#f093fb,#f5576c)",
 ];
 
-// Open a rename-board dialog. `board` is the board object, `api` is the
-// HakanbanApi instance. Calls api.updateBoard on save.
-export function openRenameDialog(shadowRoot, board, api) {
-  shadowRoot.querySelector(".hk-dialog-back")?.remove();
-
-  const back = document.createElement("div");
-  back.className = "hk-modal-back hk-dialog-back";
-  back.innerHTML = `
-      <div class="hk-modal hk-dialog" role="dialog" aria-modal="true" style="width:min(420px,100%)">
-        <h2>Rename board</h2>
-        <div class="hk-row" style="margin-top:12px">
-          <input type="text" id="hk-rename-input" style="flex:1" value="${escapeHtml(board.title)}" maxlength="120">
-        </div>
-        <div class="hk-modal-actions">
-          <span class="grow"></span>
-          <button class="hk-btn secondary" id="hk-rename-cancel">Cancel</button>
-          <button class="hk-btn" id="hk-rename-save">Save</button>
-        </div>
-      </div>`;
-  shadowRoot.appendChild(back);
-
-  const input = back.querySelector("#hk-rename-input");
-  const close = () => back.remove();
-  const save = () => {
-    const v = input.value.trim();
-    if (v && v !== board.title) api.updateBoard(board.id, { title: v });
-    close();
-  };
-  back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
-  back.querySelector("#hk-rename-cancel").addEventListener("click", close);
-  back.querySelector("#hk-rename-save").addEventListener("click", save);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); save(); }
-    else if (e.key === "Escape") { e.preventDefault(); close(); }
-  });
-  input.focus();
-  input.select();
-}
-
 // Open the display-options dialog. `opts` is the current display options
 // object (mutated in place on save). `board` is the current board object
-// (for the background picker). `api` is the HakanbanApi instance.
+// (for the background picker and rename). `api` is the HakanbanApi instance.
 // `onSave` is called with the updated opts after the user clicks Save.
 export function openOptionsDialog(shadowRoot, opts, board, api, onSave) {
   shadowRoot.querySelector(".hk-dialog-back")?.remove();
+
+  const title = board ? escapeHtml(board.title) : "";
 
   const sw = BACKGROUNDS.map(
     (bg) =>
@@ -77,16 +40,20 @@ export function openOptionsDialog(shadowRoot, opts, board, api, onSave) {
   back.className = "hk-modal-back hk-dialog-back";
   back.innerHTML = `
       <div class="hk-modal hk-dialog" role="dialog" aria-modal="true" style="width:min(440px,100%)">
-        <h2>Display options</h2>
+        <h2>Board options</h2>
+        <h3 class="hk-opt-section">Board name</h3>
+        <div class="hk-row" style="margin-bottom:12px">
+          <input type="text" id="hk-rename-input" style="flex:1" value="${title}" maxlength="120">
+        </div>
+        <h3 class="hk-opt-section">Background</h3>
+        <div class="hk-row" style="gap:6px;flex-wrap:wrap;margin-bottom:12px">${sw}</div>
+        <h3 class="hk-opt-section">Display</h3>
         <div class="hk-opt-help" title="Checked items are shown on the card face. Everything is still visible in the card detail regardless of these settings.">
           Checked items are shown on the card. Everything is still available in the card detail.
         </div>
-        <h3 class="hk-opt-section">Display</h3>
         <div style="display:flex;flex-direction:column;gap:8px">
           ${rows}
         </div>
-        <h3 class="hk-opt-section">Background</h3>
-        <div class="hk-row" style="gap:6px;flex-wrap:wrap">${sw}</div>
         <div class="hk-modal-actions">
           <span class="grow"></span>
           <button class="hk-btn secondary" id="hk-opts-cancel">Cancel</button>
@@ -95,8 +62,11 @@ export function openOptionsDialog(shadowRoot, opts, board, api, onSave) {
       </div>`;
   shadowRoot.appendChild(back);
 
+  const input = back.querySelector("#hk-rename-input");
   const close = () => back.remove();
   const save = () => {
+    const v = input.value.trim();
+    if (board && api && v && v !== board.title) api.updateBoard(board.id, { title: v });
     for (const o of DISPLAY_OPTS) {
       opts[o.key] = back.querySelector(`#hk-opt-${o.key}`).checked;
       if (o.children) {
@@ -112,6 +82,12 @@ export function openOptionsDialog(shadowRoot, opts, board, api, onSave) {
   back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
   back.querySelector("#hk-opts-cancel").addEventListener("click", close);
   back.querySelector("#hk-opts-save").addEventListener("click", save);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); save(); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  });
+  input.focus();
+  input.select();
   back.querySelectorAll("[data-bg]").forEach((el) =>
     el.addEventListener("click", () => {
       if (board && api) api.updateBoard(board.id, { background: el.dataset.bg || null });
