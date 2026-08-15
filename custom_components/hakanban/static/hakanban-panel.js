@@ -144,10 +144,6 @@ export class HakanbanPanel extends HTMLElement {
       this._activeBoardId = board.id;
       localStorage.setItem("hakanban_active_board", board.id);
     });
-    tb.querySelector("#edit-board").addEventListener("click", () => {
-      const board = this._activeBoard();
-      if (board) openRenameDialog(this.shadowRoot, board, this._api);
-    });
     tb.querySelector("#del-board").addEventListener("click", () => {
       const board = this._activeBoard();
       if (board && confirm(`Delete board "${board.title}" and all its cards?`))
