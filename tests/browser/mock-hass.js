@@ -47,6 +47,7 @@ function makeSeed() {
     mk("c1", "Walk the dog", { due: "2026-06-10T09:00:00", labels: ["red"] }),
   ];
   const groceries = board.columns[0].cards[0];
+  groceries.description = "Get the 2% organic from the corner shop. **Don't forget the receipt!**";
   groceries.checklists = [
     {
       id: "cl1",
