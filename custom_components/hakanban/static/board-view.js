@@ -8,6 +8,7 @@ import {
   formatDue,
   dueState,
   contrastText,
+  renderMarkdown,
 } from "./util.js";
 
 // Module-level drag state (HTML5 DnD can't read dataTransfer during dragover).
@@ -87,7 +88,6 @@ export class HakanbanBoard extends HTMLElement {
     badges.push(`<span class="hk-card-number">#${card.number}</span>`);
     if (card.due)
       badges.push(`<span class="hk-badge due-${ds}">🕑 ${escapeHtml(formatDue(card.due))}</span>`);
-    if (card.description) badges.push(`<span class="hk-badge">≡</span>`);
     if ((card.comments || []).length) badges.push(`<span class="hk-badge">💬 ${card.comments.length}</span>`);
     const checks = (card.checklists || []).reduce(
       (a, cl) => ({ done: a.done + cl.items.filter((i) => i.done).length, total: a.total + cl.items.length }),
@@ -113,11 +113,16 @@ export class HakanbanBoard extends HTMLElement {
         }</div>`
       : "";
 
+    const descHtml = card.description
+      ? `<div class="hk-card-desc">${renderMarkdown(card.description)}</div>`
+      : "";
+
     const completed = card.status === "completed" ? "completed" : "";
     return `
       <div class="hk-card ${completed}" draggable="true" data-card="${card.id}" data-col="${card.column_id}">
         ${labels ? `<div class="hk-card-labels">${labels}</div>` : ""}
         <div class="hk-card-title">${escapeHtml(card.title)}</div>
+        ${descHtml}
         ${checklistHtml}
         <div class="hk-card-badges">${badges.join("")}</div>
       </div>`;
