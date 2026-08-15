@@ -5,6 +5,13 @@
 import { escapeHtml } from "./util.js";
 import { DISPLAY_OPTS, saveDisplayOpts } from "./display-opts.js";
 
+const BACKGROUNDS = [
+  "", "#0079bf", "#519839", "#b04632", "#89609e", "#cd5a91",
+  "#4bbf6b", "#00aecc", "#838c91",
+  "linear-gradient(135deg,#667eea,#764ba2)",
+  "linear-gradient(135deg,#f093fb,#f5576c)",
+];
+
 // Open a rename-board dialog. `board` is the board object, `api` is the
 // HakanbanApi instance. Calls api.updateBoard on save.
 export function openRenameDialog(shadowRoot, board, api) {
@@ -45,10 +52,16 @@ export function openRenameDialog(shadowRoot, board, api) {
 }
 
 // Open the display-options dialog. `opts` is the current display options
-// object (mutated in place on save). `onSave` is called with the updated
-// opts after the user clicks Save.
-export function openOptionsDialog(shadowRoot, opts, onSave) {
+// object (mutated in place on save). `board` is the current board object
+// (for the background picker). `api` is the HakanbanApi instance.
+// `onSave` is called with the updated opts after the user clicks Save.
+export function openOptionsDialog(shadowRoot, opts, board, api, onSave) {
   shadowRoot.querySelector(".hk-dialog-back")?.remove();
+
+  const sw = BACKGROUNDS.map(
+    (bg) =>
+      `<span data-bg="${escapeHtml(bg)}" title="${escapeHtml(bg || "None")}" style="display:inline-block;width:28px;height:28px;border-radius:6px;cursor:pointer;border:1px solid var(--hk-divider);background:${bg || "var(--card-background-color)"}"></span>`
+  ).join("");
 
   const rows = DISPLAY_OPTS
     .map((o) => {
@@ -72,6 +85,8 @@ export function openOptionsDialog(shadowRoot, opts, onSave) {
         <div style="display:flex;flex-direction:column;gap:8px">
           ${rows}
         </div>
+        <h3 class="hk-opt-section">Background</h3>
+        <div class="hk-row" style="gap:6px;flex-wrap:wrap">${sw}</div>
         <div class="hk-modal-actions">
           <span class="grow"></span>
           <button class="hk-btn secondary" id="hk-opts-cancel">Cancel</button>
@@ -97,4 +112,9 @@ export function openOptionsDialog(shadowRoot, opts, onSave) {
   back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
   back.querySelector("#hk-opts-cancel").addEventListener("click", close);
   back.querySelector("#hk-opts-save").addEventListener("click", save);
+  back.querySelectorAll("[data-bg]").forEach((el) =>
+    el.addEventListener("click", () => {
+      if (board && api) api.updateBoard(board.id, { background: el.dataset.bg || null });
+    })
+  );
 }

@@ -8,13 +8,6 @@ import { loadDisplayOpts } from "./display-opts.js";
 import { openRenameDialog, openOptionsDialog } from "./dialogs.js";
 import "./board-view.js";
 
-const BACKGROUNDS = [
-  "", "#0079bf", "#519839", "#b04632", "#89609e", "#cd5a91",
-  "#4bbf6b", "#00aecc", "#838c91",
-  "linear-gradient(135deg,#667eea,#764ba2)",
-  "linear-gradient(135deg,#f093fb,#f5576c)",
-];
-
 export class HakanbanPanel extends HTMLElement {
   constructor() {
     super();
@@ -23,7 +16,6 @@ export class HakanbanPanel extends HTMLElement {
     this._query = "";
     this._activeLabels = new Set();
     this._showFilter = false;
-    this._showBg = false;
     this._built = false;
     this._displayOpts = loadDisplayOpts();
   }
@@ -129,7 +121,6 @@ export class HakanbanPanel extends HTMLElement {
       <button class="hk-iconbtn" id="redo-btn" title="Redo (Ctrl/⌘+Shift+Z)" ${canRedo ? "" : "disabled"}>↷</button>
       <input class="hk-search" id="search" type="search" placeholder="Search cards…" value="${escapeHtml(this._query)}">
       <button class="hk-iconbtn" id="filter-btn" title="Filter by label">⚑</button>
-      <button class="hk-iconbtn" id="bg-btn" title="Board background">🎨</button>
       <button class="hk-iconbtn" id="edit-board" title="Rename board">✎</button>
       <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>
       <button class="hk-iconbtn" id="opts-btn" title="Display options">⚙</button>`;
@@ -165,19 +156,14 @@ export class HakanbanPanel extends HTMLElement {
     });
     tb.querySelector("#filter-btn").addEventListener("click", () => {
       this._showFilter = !this._showFilter;
-      this._showBg = false;
       this._renderFilterbar();
     });
-    tb.querySelector("#bg-btn").addEventListener("click", () => {
-      this._showBg = !this._showBg;
-      this._showFilter = false;
-      this._renderFilterbar();
-    });
-    tb.querySelector("#opts-btn").addEventListener("click", () =>
-      openOptionsDialog(this.shadowRoot, this._displayOpts, (opts) => {
+    tb.querySelector("#opts-btn").addEventListener("click", () => {
+      const board = this._activeBoard();
+      openOptionsDialog(this.shadowRoot, this._displayOpts, board, this._api, (opts) => {
         if (this._boardEl) this._boardEl.displayOpts = opts;
-      })
-    );
+      });
+    });
 
     const search = tb.querySelector("#search");
     const apply = debounce(() => {
@@ -193,23 +179,14 @@ export class HakanbanPanel extends HTMLElement {
     const bar = this.shadowRoot.getElementById("filterbar");
     const board = this._activeBoard();
     if (!board) { bar.innerHTML = ""; return; }
-    let html = "";
-    if (this._showFilter) {
-      const chips = (board.labels || [])
-        .map(
-          (l) =>
-            `<span class="hk-label-chip ${this._activeLabels.has(l.id) ? "selected" : ""}" data-flabel="${l.id}" style="background:${l.color};color:${contrastText(l.color)}">${escapeHtml(l.name || "·")}</span>`
-        )
-        .join("");
-      html = `<div class="hk-row" style="padding:8px 16px;border-bottom:1px solid var(--hk-divider)"><strong style="margin-right:6px">Labels:</strong>${chips || "<em>No labels yet</em>"} <button class="hk-btn secondary" data-clearf>Clear</button></div>`;
-    } else if (this._showBg) {
-      const sw = BACKGROUNDS.map(
-        (bg) =>
-          `<span data-bg="${bg}" title="${bg || "None"}" style="display:inline-block;width:28px;height:28px;border-radius:6px;cursor:pointer;border:1px solid var(--hk-divider);background:${bg || "var(--card-background-color)"}"></span>`
-      ).join("");
-      html = `<div class="hk-row" style="padding:8px 16px;border-bottom:1px solid var(--hk-divider)"><strong style="margin-right:6px">Background:</strong>${sw}</div>`;
-    }
-    bar.innerHTML = html;
+    if (!this._showFilter) { bar.innerHTML = ""; return; }
+    const chips = (board.labels || [])
+      .map(
+        (l) =>
+          `<span class="hk-label-chip ${this._activeLabels.has(l.id) ? "selected" : ""}" data-flabel="${l.id}" style="background:${l.color};color:${contrastText(l.color)}">${escapeHtml(l.name || "·")}</span>`
+      )
+      .join("");
+    bar.innerHTML = `<div class="hk-row" style="padding:8px 16px;border-bottom:1px solid var(--hk-divider)"><strong style="margin-right:6px">Labels:</strong>${chips || "<em>No labels yet</em>"} <button class="hk-btn secondary" data-clearf>Clear</button></div>`;
 
     bar.querySelectorAll("[data-flabel]").forEach((el) =>
       el.addEventListener("click", () => {
@@ -221,9 +198,6 @@ export class HakanbanPanel extends HTMLElement {
     );
     const clearf = bar.querySelector("[data-clearf]");
     if (clearf) clearf.addEventListener("click", () => { this._activeLabels.clear(); this._renderFilterbar(); this._applyFilter(); });
-    bar.querySelectorAll("[data-bg]").forEach((el) =>
-      el.addEventListener("click", () => this._api.updateBoard(board.id, { background: el.dataset.bg || null }))
-    );
   }
 
   _applyFilter() {
