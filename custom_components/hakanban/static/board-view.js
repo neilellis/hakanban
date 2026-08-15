@@ -1,39 +1,13 @@
 // <hakanban-board> — renders one board (columns + cards) with native drag & drop.
 // Used by both the full-page panel and the embeddable Lovelace card.
+// Card rendering lives in card-render.js; DnD wiring lives in dnd.js.
 
 import { STYLES } from "./styles.js";
 import { HakanbanCardDetail } from "./card-detail.js";
-import {
-  escapeHtml,
-  formatDue,
-  dueState,
-  contrastText,
-  renderMarkdown,
-} from "./util.js";
+import { escapeHtml } from "./util.js";
 import { normalizeDisplayOpts } from "./display-opts.js";
-
-// Module-level drag state (HTML5 DnD can't read dataTransfer during dragover).
-let DRAG = null; // { kind: 'card'|'col', id, from? }
-
-function cardAfter(container, y) {
-  const els = [...container.querySelectorAll(".hk-card:not(.dragging)")];
-  let best = { offset: -Infinity, el: null };
-  for (const el of els) {
-    const box = el.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    if (offset < 0 && offset > best.offset) best = { offset, el };
-  }
-  return best.el;
-}
-
-function colInsertionIndex(boardEl, x) {
-  const cols = [...boardEl.querySelectorAll(".hk-col")];
-  for (let i = 0; i < cols.length; i++) {
-    const box = cols[i].getBoundingClientRect();
-    if (x < box.left + box.width / 2) return i;
-  }
-  return cols.length;
-}
+import { cardHtml } from "./card-render.js";
+import { wireDnD } from "./dnd.js";
 
 export class HakanbanBoard extends HTMLElement {
   constructor() {
@@ -80,103 +54,9 @@ export class HakanbanBoard extends HTMLElement {
     return true;
   }
 
-  _cardHtml(card, labelById) {
-    const labels = (card.labels || [])
-      .map((id) => labelById[id])
-      .filter(Boolean)
-      .map(
-        (l) =>
-          `<span class="hk-label" style="background:${l.color};color:${contrastText(l.color)}">${escapeHtml(l.name || "")}</span>`
-      )
-      .join("");
-    const opts = this._displayOpts;
-    const ds = dueState(card.due, card.due_complete);
-    const badges = [];
-    if (opts.showCardNumber) badges.push(`<span class="hk-card-number">#${card.number}</span>`);
-    if (opts.showDueDate && card.due)
-      badges.push(`<span class="hk-badge due-${ds}">🕑 ${escapeHtml(formatDue(card.due))}</span>`);
-    if (!opts.showComments && (card.comments || []).length) badges.push(`<span class="hk-badge">💬 ${card.comments.length}</span>`);
-    const checks = (card.checklists || []).reduce(
-      (a, cl) => ({ done: a.done + cl.items.filter((i) => i.done).length, total: a.total + cl.items.length }),
-      { done: 0, total: 0 }
-    );
-    if (checks.total) badges.push(`<span class="hk-badge">☑ ${checks.done}/${checks.total}</span>`);
-    if (opts.showAssignees && (card.assignees || []).length) badges.push(`<span class="hk-badge">👤 ${card.assignees.length}</span>`);
-
-    // Inline checklist: render the actual items (collapses to the badge above only if empty).
-    const checklists = (card.checklists || []).filter((cl) => cl.items.length);
-    const checklistHtml = (opts.showChecklists && checklists.length)
-      ? `<div class="hk-card-checks">
-          ${checklists
-            .map((cl) =>
-              cl.items
-                .map(
-                  (i) =>
-                    `<label class="hk-check-inline ${i.done ? "done" : ""}" data-card="${card.id}"><input type="checkbox" data-check="${cl.id}:${i.id}" ${i.done ? "checked" : ""}><span>${escapeHtml(i.text)}</span></label>`
-                )
-                .join("")
-            )
-            .join("")
-        }</div>`
-      : "";
-
-    const descHtml = (opts.showDescription && card.description)
-      ? `<div class="hk-card-desc">${renderMarkdown(card.description)}</div>`
-      : "";
-
-    // Inline comments: show the actual comment text when showComments is on.
-    // When off, a count badge appears in the badge row instead.
-    // Move comments have structured move_from/move_to so sub-options can
-    // toggle which parts of the move info are shown.
-    const comments = (card.comments || []).filter((cm) => cm && cm.text);
-    const fmtTs = (ts) => {
-      if (!ts) return "";
-      const d = new Date(ts);
-      if (Number.isNaN(d.getTime())) return "";
-      const parts = [];
-      if (opts.commentShowDate) parts.push(d.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
-      if (opts.commentShowTime) parts.push(d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }));
-      return parts.join(" ");
-    };
-    const commentText = (cm) => {
-      if (cm.move_from || cm.move_to) {
-        const parts = [];
-        if (cm.move_from && opts.commentShowFrom) parts.push(`from ${cm.move_from}`);
-        if (cm.move_to && opts.commentShowTo) parts.push(`to ${cm.move_to}`);
-        const move = parts.length ? `Moved ${parts.join(" ")}` : "Moved";
-        return move;
-      }
-      return cm.text;
-    };
-    const commentsHtml = (opts.showComments && comments.length)
-      ? `<div class="hk-card-comments">
-          ${comments
-            .map((cm) => {
-              const author = opts.commentShowUser ? `<span class="hk-comment-author">${escapeHtml(cm.author || "?")}</span>` : "";
-              const ts = fmtTs(cm.ts);
-              const tsHtml = ts ? `<span class="hk-comment-ts">${escapeHtml(ts)}</span>` : "";
-              return `<div class="hk-comment-inline">${author}<span class="hk-comment-text">${escapeHtml(commentText(cm))}</span>${tsHtml}</div>`;
-            })
-            .join("")}
-        </div>`
-      : "";
-
-    const badgesHtml = badges.length ? `<div class="hk-card-badges">${badges.join("")}</div>` : "";
-    const completed = card.status === "completed" ? "completed" : "";
-    return `
-      <div class="hk-card ${completed}" draggable="true" data-card="${card.id}" data-col="${card.column_id}">
-        ${(opts.showLabels && labels) ? `<div class="hk-card-labels">${labels}</div>` : ""}
-        ${opts.showTitle ? `<div class="hk-card-title">${escapeHtml(card.title)}</div>` : ""}
-        ${descHtml}
-        ${checklistHtml}
-        ${commentsHtml}
-        ${badgesHtml}
-      </div>`;
-  }
-
   _columnHtml(col, labelById) {
     const cards = (col.cards || []).filter((c) => this._cardVisible(c));
-    const cardsHtml = cards.map((c) => this._cardHtml(c, labelById)).join("");
+    const cardsHtml = cards.map((c) => cardHtml(c, labelById, this._displayOpts)).join("");
     const composerOpen = this._composer.openCol === col.id;
     const footer = composerOpen
       ? `<div class="hk-composer">
@@ -264,61 +144,12 @@ export class HakanbanBoard extends HTMLElement {
         if (this._justDragged) return;
         this._openCard(el.dataset.card);
       });
-      el.addEventListener("dragstart", (e) => {
-        DRAG = { kind: "card", id: el.dataset.card, from: el.dataset.col };
-        el.classList.add("dragging");
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", el.dataset.card);
-      });
-      el.addEventListener("dragend", () => {
-        el.classList.remove("dragging");
-        DRAG = null;
-        this._justDragged = true;
-        setTimeout(() => (this._justDragged = false), 50);
-      });
     });
 
-    // --- card drop targets (each column's card list) ---
-    root.querySelectorAll(".hk-col").forEach((colEl) => {
-      const colId = colEl.dataset.col;
-      const list = colEl.querySelector(".hk-cards");
-      colEl.addEventListener("dragover", (e) => {
-        if (DRAG?.kind !== "card") return;
-        e.preventDefault();
-        colEl.classList.add("dragover");
-      });
-      colEl.addEventListener("dragleave", () => colEl.classList.remove("dragover"));
-      colEl.addEventListener("drop", (e) => {
-        if (DRAG?.kind !== "card") return;
-        e.preventDefault();
-        colEl.classList.remove("dragover");
-        const after = cardAfter(list, e.clientY);
-        const ids = [...list.querySelectorAll(".hk-card")]
-          .map((n) => n.dataset.card)
-          .filter((id) => id !== DRAG.id);
-        const position = after ? ids.indexOf(after.dataset.card) : ids.length;
-        api.moveCard(DRAG.id, colId, position < 0 ? ids.length : position);
-      });
-    });
-
-    // --- column reordering ---
-    root.querySelectorAll("[data-colhead]").forEach((head) => {
-      head.addEventListener("dragstart", (e) => {
-        DRAG = { kind: "col", id: head.dataset.colhead };
-        e.dataTransfer.effectAllowed = "move";
-        e.stopPropagation();
-      });
-      head.addEventListener("dragend", () => (DRAG = null));
-    });
-    boardEl.addEventListener("dragover", (e) => {
-      if (DRAG?.kind !== "col") return;
-      e.preventDefault();
-    });
-    boardEl.addEventListener("drop", (e) => {
-      if (DRAG?.kind !== "col") return;
-      e.preventDefault();
-      const position = colInsertionIndex(boardEl, e.clientX);
-      api.moveColumn(boardId, DRAG.id, position);
+    // --- drag & drop (delegated to dnd.js) ---
+    wireDnD(root, api, boardId, boardEl, () => {
+      this._justDragged = true;
+      setTimeout(() => (this._justDragged = false), 50);
     });
 
     // --- column title rename ---
