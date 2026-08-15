@@ -42,6 +42,8 @@ frontend (panel + Lovelace card). Everything below is the source of truth.
         { "id": "<id>", "title": "Steps", "items": [ { "id": "<id>", "text": "x", "done": false } ] }
       ],
       "comments": [ { "id": "<id>", "author": "Neil", "ts": "<iso8601>", "text": "..." } ],
+      // comments are append-only (added via add_comment or auto-generated on
+      // cross-column/cross-board moves as "Moved from <from> to <to>")
       "cover": null,
       "archived": false,
       "created": "<iso8601>",
@@ -98,7 +100,7 @@ optimistic update and reconcile on the next push.
 | `hakanban/create_card` | `board_id`, `column_id`, `title`, `description?`, `labels?`, `due?` | card |
 | `hakanban/paste_cards` | `board_id`, `column_id`, `text` (newline-separated) **or** `titles[]` | `{cards:[…]}` |
 | `hakanban/update_card` | `card_id`, any of `title/description/labels/assignees/due/due_complete/status/cover/archived` | card |
-| `hakanban/move_card` | `card_id`, `to_column`, `position?` (int), `to_board?` | card |
+| `hakanban/move_card` | `card_id`, `to_column`, `position?` (int), `to_board?` | card (auto-comments on cross-column/cross-board moves) |
 | `hakanban/delete_card` | `card_id` | `{deleted: card_id}` |
 | `hakanban/create_label` | `board_id`, `name`, `color` | label |
 | `hakanban/update_label` | `board_id`, `label_id`, `name?`, `color?` | label |

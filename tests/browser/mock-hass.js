@@ -153,6 +153,17 @@ const handlers = {
   move_card: ({ card_id, to_column, position }) => {
     const found = findCard(card_id);
     const [board, fromCol, card] = found;
+    // Auto-comment on cross-column moves (mirrors the real backend).
+    if (fromCol.id !== to_column) {
+      const toCol = board.columns.find((c) => c.id === to_column);
+      card.comments = card.comments || [];
+      card.comments.push({
+        id: uid(),
+        author: "Home Assistant",
+        ts: new Date().toISOString(),
+        text: `Moved from ${fromCol.title} to ${toCol.title}`,
+      });
+    }
     fromCol.cards = fromCol.cards.filter((c) => c.id !== card_id);
     const toCol = board.columns.find((c) => c.id === to_column);
     const pos = position == null ? toCol.cards.length : position;
