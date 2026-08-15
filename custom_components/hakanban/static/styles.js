@@ -152,4 +152,12 @@ export const STYLES = `
 .hk-row input[type="datetime-local"], .hk-row input[type="text"] { padding: 6px; border-radius: 6px; border: 1px solid var(--hk-divider); background: var(--hk-col-bg); color: var(--hk-text); font: inherit; }
 .hk-check-item { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .hk-check-item.done span { text-decoration: line-through; color: var(--hk-subtle); }
+.hk-opt-row { display: flex; gap: 8px; align-items: center; font-size: .9rem; cursor: pointer; }
+.hk-opt-row input { margin: 0; cursor: pointer; }
+/* Compact mode: tighter cards, smaller text, less padding. */
+.hk-board.compact .hk-card { padding: 4px 6px; margin-bottom: 4px; }
+.hk-board.compact .hk-card-title { font-size: .82rem; }
+.hk-board.compact .hk-card-badges { margin-top: 3px; font-size: .66rem; gap: 6px; }
+.hk-board.compact .hk-card-labels { margin-bottom: 4px; gap: 3px; }
+.hk-board.compact .hk-label { font-size: .6rem; padding: 1px 6px; }
 `;

@@ -42,6 +42,7 @@ export class HakanbanBoard extends HTMLElement {
     this._filter = { query: "", labels: new Set() };
     this._openCardId = null;
     this._modal = null;
+    this._displayOpts = { showBadges: true, showCardNumber: true, compact: false };
   }
 
   set api(api) {
@@ -52,6 +53,14 @@ export class HakanbanBoard extends HTMLElement {
   }
   set filter(f) {
     this._filter = { query: (f.query || "").toLowerCase(), labels: f.labels || new Set() };
+    this.render();
+  }
+  set displayOpts(o) {
+    this._displayOpts = {
+      showBadges: o.showBadges !== false,
+      showCardNumber: o.showCardNumber !== false,
+      compact: o.compact === true,
+    };
     this.render();
   }
   set board(b) {
@@ -82,9 +91,10 @@ export class HakanbanBoard extends HTMLElement {
           `<span class="hk-label" style="background:${l.color};color:${contrastText(l.color)}">${escapeHtml(l.name || "")}</span>`
       )
       .join("");
+    const opts = this._displayOpts;
     const ds = dueState(card.due, card.due_complete);
     const badges = [];
-    badges.push(`<span class="hk-card-number">#${card.number}</span>`);
+    if (opts.showCardNumber) badges.push(`<span class="hk-card-number">#${card.number}</span>`);
     if (card.due)
       badges.push(`<span class="hk-badge due-${ds}">🕑 ${escapeHtml(formatDue(card.due))}</span>`);
     if (card.description) badges.push(`<span class="hk-badge">≡</span>`);
@@ -96,12 +106,13 @@ export class HakanbanBoard extends HTMLElement {
     if (checks.total) badges.push(`<span class="hk-badge">☑ ${checks.done}/${checks.total}</span>`);
     if ((card.assignees || []).length) badges.push(`<span class="hk-badge">👤 ${card.assignees.length}</span>`);
 
+    const badgesHtml = opts.showBadges ? `<div class="hk-card-badges">${badges.join("")}</div>` : "";
     const completed = card.status === "completed" ? "completed" : "";
     return `
       <div class="hk-card ${completed}" draggable="true" data-card="${card.id}" data-col="${card.column_id}">
         ${labels ? `<div class="hk-card-labels">${labels}</div>` : ""}
         <div class="hk-card-title">${escapeHtml(card.title)}</div>
-        <div class="hk-card-badges">${badges.join("")}</div>
+        ${badgesHtml}
       </div>`;
   }
 
@@ -146,8 +157,9 @@ export class HakanbanBoard extends HTMLElement {
       : `<div class="hk-add-col"><button data-addcol-open>+ Add a list</button></div>`;
 
     const bg = b.background ? `style="background:${escapeHtml(b.background)}"` : "";
+    const compactCls = this._displayOpts.compact ? "compact" : "";
     this.shadowRoot.innerHTML = `<style>${STYLES}</style>
-      <div class="hk-board" data-board ${bg}>${cols}${addCol}</div>`;
+      <div class="hk-board ${compactCls}" data-board ${bg}>${cols}${addCol}</div>`;
 
     this._wire();
     this._restoreComposer();

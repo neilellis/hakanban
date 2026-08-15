@@ -22,6 +22,11 @@ export class HakanbanPanel extends HTMLElement {
     this._showFilter = false;
     this._showBg = false;
     this._built = false;
+    this._displayOpts = JSON.parse(localStorage.getItem("hakanban_display_opts") || "{}");
+    // Defaults: everything on (current behaviour).
+    this._displayOpts.showBadges = this._displayOpts.showBadges !== false;
+    this._displayOpts.showCardNumber = this._displayOpts.showCardNumber !== false;
+    this._displayOpts.compact = this._displayOpts.compact === true;
   }
 
   set hass(hass) {
@@ -100,6 +105,7 @@ export class HakanbanPanel extends HTMLElement {
     this._boardEl.style.minWidth = "0";
     this._boardEl.api = this._api;
     this._boardEl.hass = this._hass;
+    this._boardEl.displayOpts = this._displayOpts;
     this.shadowRoot.getElementById("host").appendChild(this._boardEl);
     this._built = true;
   }
@@ -126,7 +132,8 @@ export class HakanbanPanel extends HTMLElement {
       <button class="hk-iconbtn" id="filter-btn" title="Filter by label">⚑</button>
       <button class="hk-iconbtn" id="bg-btn" title="Board background">🎨</button>
       <button class="hk-iconbtn" id="edit-board" title="Rename board">✎</button>
-      <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>`;
+      <button class="hk-iconbtn" id="del-board" title="Delete board">🗑</button>
+      <button class="hk-iconbtn" id="opts-btn" title="Display options">⚙</button>`;
 
     tb.querySelector("#undo-btn").addEventListener("click", () => this._api.undo());
     tb.querySelector("#redo-btn").addEventListener("click", () => this._api.redo());
@@ -167,6 +174,7 @@ export class HakanbanPanel extends HTMLElement {
       this._showFilter = false;
       this._renderFilterbar();
     });
+    tb.querySelector("#opts-btn").addEventListener("click", () => this._openOptionsDialog());
 
     const search = tb.querySelector("#search");
     const apply = debounce(() => {
@@ -258,6 +266,45 @@ export class HakanbanPanel extends HTMLElement {
     });
     input.focus();
     input.select();
+  }
+
+  _openOptionsDialog() {
+    this.shadowRoot.querySelector(".hk-dialog-back")?.remove(); // one at a time
+
+    const opts = this._displayOpts;
+    const row = (key, label) =>
+      `<label class="hk-opt-row"><input type="checkbox" id="hk-opt-${key}" ${opts[key] ? "checked" : ""}><span>${label}</span></label>`;
+
+    const back = document.createElement("div");
+    back.className = "hk-modal-back hk-dialog-back";
+    back.innerHTML = `
+      <div class="hk-modal hk-dialog" role="dialog" aria-modal="true" style="width:min(420px,100%)">
+        <h2>Display options</h2>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+          ${row("showBadges", "Show badges (due, comments, checks, assignees)")}
+          ${row("showCardNumber", "Show card numbers (#1, #2, …)")}
+          ${row("compact", "Compact mode (smaller cards, less padding)")}
+        </div>
+        <div class="hk-modal-actions">
+          <span class="grow"></span>
+          <button class="hk-btn secondary" id="hk-opts-cancel">Cancel</button>
+          <button class="hk-btn" id="hk-opts-save">Save</button>
+        </div>
+      </div>`;
+    this.shadowRoot.appendChild(back);
+
+    const close = () => back.remove();
+    const save = () => {
+      for (const key of ["showBadges", "showCardNumber", "compact"]) {
+        opts[key] = back.querySelector(`#hk-opt-${key}`).checked;
+      }
+      localStorage.setItem("hakanban_display_opts", JSON.stringify(opts));
+      if (this._boardEl) this._boardEl.displayOpts = opts;
+      close();
+    };
+    back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
+    back.querySelector("#hk-opts-cancel").addEventListener("click", close);
+    back.querySelector("#hk-opts-save").addEventListener("click", save);
   }
 
   _renderBoard() {
