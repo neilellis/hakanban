@@ -10,6 +10,7 @@ import {
   contrastText,
   renderMarkdown,
 } from "./util.js";
+import { normalizeDisplayOpts } from "./display-opts.js";
 
 // Module-level drag state (HTML5 DnD can't read dataTransfer during dragover).
 let DRAG = null; // { kind: 'card'|'col', id, from? }
@@ -43,6 +44,7 @@ export class HakanbanBoard extends HTMLElement {
     this._filter = { query: "", labels: new Set() };
     this._openCardId = null;
     this._modal = null;
+    this._displayOpts = normalizeDisplayOpts({});
   }
 
   set api(api) {
@@ -53,6 +55,10 @@ export class HakanbanBoard extends HTMLElement {
   }
   set filter(f) {
     this._filter = { query: (f.query || "").toLowerCase(), labels: f.labels || new Set() };
+    this.render();
+  }
+  set displayOpts(o) {
+    this._displayOpts = normalizeDisplayOpts(o);
     this.render();
   }
   set board(b) {
@@ -83,22 +89,23 @@ export class HakanbanBoard extends HTMLElement {
           `<span class="hk-label" style="background:${l.color};color:${contrastText(l.color)}">${escapeHtml(l.name || "")}</span>`
       )
       .join("");
+    const opts = this._displayOpts;
     const ds = dueState(card.due, card.due_complete);
     const badges = [];
-    badges.push(`<span class="hk-card-number">#${card.number}</span>`);
-    if (card.due)
+    if (opts.showCardNumber) badges.push(`<span class="hk-card-number">#${card.number}</span>`);
+    if (opts.showDueDate && card.due)
       badges.push(`<span class="hk-badge due-${ds}">🕑 ${escapeHtml(formatDue(card.due))}</span>`);
-    if ((card.comments || []).length) badges.push(`<span class="hk-badge">💬 ${card.comments.length}</span>`);
+    if (!opts.showComments && (card.comments || []).length) badges.push(`<span class="hk-badge">💬 ${card.comments.length}</span>`);
     const checks = (card.checklists || []).reduce(
       (a, cl) => ({ done: a.done + cl.items.filter((i) => i.done).length, total: a.total + cl.items.length }),
       { done: 0, total: 0 }
     );
     if (checks.total) badges.push(`<span class="hk-badge">☑ ${checks.done}/${checks.total}</span>`);
-    if ((card.assignees || []).length) badges.push(`<span class="hk-badge">👤 ${card.assignees.length}</span>`);
+    if (opts.showAssignees && (card.assignees || []).length) badges.push(`<span class="hk-badge">👤 ${card.assignees.length}</span>`);
 
     // Inline checklist: render the actual items (collapses to the badge above only if empty).
     const checklists = (card.checklists || []).filter((cl) => cl.items.length);
-    const checklistHtml = checklists.length
+    const checklistHtml = (opts.showChecklists && checklists.length)
       ? `<div class="hk-card-checks">
           ${checklists
             .map((cl) =>
@@ -113,18 +120,57 @@ export class HakanbanBoard extends HTMLElement {
         }</div>`
       : "";
 
-    const descHtml = card.description
+    const descHtml = (opts.showDescription && card.description)
       ? `<div class="hk-card-desc">${renderMarkdown(card.description)}</div>`
       : "";
 
+    // Inline comments: show the actual comment text when showComments is on.
+    // When off, a count badge appears in the badge row instead.
+    // Move comments have structured move_from/move_to so sub-options can
+    // toggle which parts of the move info are shown.
+    const comments = (card.comments || []).filter((cm) => cm && cm.text);
+    const fmtTs = (ts) => {
+      if (!ts) return "";
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return "";
+      const parts = [];
+      if (opts.commentShowDate) parts.push(d.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+      if (opts.commentShowTime) parts.push(d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }));
+      return parts.join(" ");
+    };
+    const commentText = (cm) => {
+      if (cm.move_from || cm.move_to) {
+        const parts = [];
+        if (cm.move_from && opts.commentShowFrom) parts.push(`from ${cm.move_from}`);
+        if (cm.move_to && opts.commentShowTo) parts.push(`to ${cm.move_to}`);
+        const move = parts.length ? `Moved ${parts.join(" ")}` : "Moved";
+        return move;
+      }
+      return cm.text;
+    };
+    const commentsHtml = (opts.showComments && comments.length)
+      ? `<div class="hk-card-comments">
+          ${comments
+            .map((cm) => {
+              const author = opts.commentShowUser ? `<span class="hk-comment-author">${escapeHtml(cm.author || "?")}</span>` : "";
+              const ts = fmtTs(cm.ts);
+              const tsHtml = ts ? `<span class="hk-comment-ts">${escapeHtml(ts)}</span>` : "";
+              return `<div class="hk-comment-inline">${author}<span class="hk-comment-text">${escapeHtml(commentText(cm))}</span>${tsHtml}</div>`;
+            })
+            .join("")}
+        </div>`
+      : "";
+
+    const badgesHtml = badges.length ? `<div class="hk-card-badges">${badges.join("")}</div>` : "";
     const completed = card.status === "completed" ? "completed" : "";
     return `
       <div class="hk-card ${completed}" draggable="true" data-card="${card.id}" data-col="${card.column_id}">
-        ${labels ? `<div class="hk-card-labels">${labels}</div>` : ""}
-        <div class="hk-card-title">${escapeHtml(card.title)}</div>
+        ${(opts.showLabels && labels) ? `<div class="hk-card-labels">${labels}</div>` : ""}
+        ${opts.showTitle ? `<div class="hk-card-title">${escapeHtml(card.title)}</div>` : ""}
         ${descHtml}
         ${checklistHtml}
-        <div class="hk-card-badges">${badges.join("")}</div>
+        ${commentsHtml}
+        ${badgesHtml}
       </div>`;
   }
 
@@ -169,8 +215,9 @@ export class HakanbanBoard extends HTMLElement {
       : `<div class="hk-add-col"><button data-addcol-open>+ Add a list</button></div>`;
 
     const bg = b.background ? `style="background:${escapeHtml(b.background)}"` : "";
+    const compactCls = this._displayOpts.compact ? "compact" : "";
     this.shadowRoot.innerHTML = `<style>${STYLES}</style>
-      <div class="hk-board" data-board ${bg}>${cols}${addCol}</div>`;
+      <div class="hk-board ${compactCls}" data-board ${bg}>${cols}${addCol}</div>`;
 
     this._wire();
     this._restoreComposer();
