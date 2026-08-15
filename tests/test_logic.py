@@ -145,6 +145,21 @@ def run():
     check("move fired event with from/to",
           moved and moved[-1][1]["from_column"] == todo and moved[-1][1]["to_column"] == doing)
 
+    # Cross-column move auto-generates a comment; reorder within a column does not.
+    check("cross-column move adds an auto-comment",
+          any("Moved from" in c.get("text", "")
+              for c in mgr.cards[c1["id"]].get("comments", [])))
+    check("auto-comment defaults to Home Assistant author",
+          mgr.cards[c1["id"]]["comments"][-1]["author"] == "Home Assistant")
+    # Explicit user name is used as the comment author.
+    mgr.move_card(c1["id"], todo, user="Alice")
+    check("auto-comment uses the provided user name",
+          mgr.cards[c1["id"]]["comments"][-1]["author"] == "Alice")
+    comments_before = len(mgr.cards[c3["id"]].get("comments", []))
+    mgr.move_card(c3["id"], todo, position=2)  # reorder within 'todo'
+    check("reorder within column adds no comment",
+          len(mgr.cards[c3["id"]].get("comments", [])) == comments_before)
+
     # Bulk paste: 3 non-empty lines among blanks -> 3 cards, ordered.
     pasted = mgr.create_cards_bulk(bid, done, ["X", "  ", "Y", "", "Z"])
     check("bulk paste skips blanks", len(pasted) == 3)

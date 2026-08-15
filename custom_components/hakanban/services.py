@@ -80,12 +80,18 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         return {"card_id": card["id"], "number": card["number"]}
 
     async def move_card(call: ServiceCall) -> None:
+        user = None
+        if call.context.user_id:
+            user_obj = await hass.auth.async_get_user(call.context.user_id)
+            if user_obj:
+                user = user_obj.name
         try:
             _manager().move_card(
                 call.data["card_id"],
                 call.data["to_column"],
                 position=call.data.get("position"),
                 to_board=call.data.get("to_board"),
+                user=user,
             )
         except HakanbanError as err:
             raise vol.Invalid(str(err)) from err
