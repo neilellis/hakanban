@@ -92,6 +92,14 @@ export const STYLES = `
   white-space: nowrap; overflow: hidden;
 }
 .hk-card-title { font-size: .9rem; line-height: 1.3; white-space: pre-wrap; word-break: break-word; }
+.hk-card-desc {
+  font-size: .76rem; line-height: 1.3; color: var(--hk-subtle); margin-top: 4px;
+  word-break: break-word; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.hk-card-desc code { background: rgba(127,127,127,.18); padding: 0 3px; border-radius: 3px; font-size: .9em; }
+.hk-card-desc ul { margin: 0; padding-left: 16px; }
+.hk-card-desc li { display: list-item; }
 .hk-card-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; color: var(--hk-subtle); font-size: .72rem; align-items: center; }
 .hk-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: 4px; }
 .hk-badge.due-overdue { background: #eb5a46; color: #fff; }
@@ -152,4 +160,8 @@ export const STYLES = `
 .hk-row input[type="datetime-local"], .hk-row input[type="text"] { padding: 6px; border-radius: 6px; border: 1px solid var(--hk-divider); background: var(--hk-col-bg); color: var(--hk-text); font: inherit; }
 .hk-check-item { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .hk-check-item.done span { text-decoration: line-through; color: var(--hk-subtle); }
+.hk-card-checks { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 0; }
+.hk-check-inline { display: flex; gap: 6px; align-items: center; font-size: .78rem; color: var(--hk-text); cursor: pointer; padding: 1px 0; }
+.hk-check-inline input { margin: 0; cursor: pointer; }
+.hk-check-inline.done span { text-decoration: line-through; color: var(--hk-subtle); }
 `;

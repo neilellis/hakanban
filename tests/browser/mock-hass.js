@@ -46,6 +46,19 @@ function makeSeed() {
     mk("c1", "Buy milk", { labels: ["green"] }),
     mk("c1", "Walk the dog", { due: "2026-06-10T09:00:00", labels: ["red"] }),
   ];
+  const groceries = board.columns[0].cards[0];
+  groceries.description = "Get the 2% organic from the corner shop. **Don't forget the receipt!**";
+  groceries.checklists = [
+    {
+      id: "cl1",
+      title: "Shopping list",
+      items: [
+        { id: "i1", text: "2% milk", done: true },
+        { id: "i2", text: "Bread", done: false },
+        { id: "i3", text: "Eggs", done: false },
+      ],
+    },
+  ];
   board.columns[1].cards = [mk("c2", "Write the report", { description: "**Important** task" })];
   board.columns[2].cards = [mk("c3", "Ship it", { status: "completed" })];
   // normalise order
@@ -141,6 +154,17 @@ const handlers = {
   move_card: ({ card_id, to_column, position }) => {
     const found = findCard(card_id);
     const [board, fromCol, card] = found;
+    // Auto-comment on cross-column moves (mirrors the real backend).
+    if (fromCol.id !== to_column) {
+      const toCol = board.columns.find((c) => c.id === to_column);
+      card.comments = card.comments || [];
+      card.comments.push({
+        id: uid(),
+        author: "Home Assistant",
+        ts: new Date().toISOString(),
+        text: `Moved from ${fromCol.title} to ${toCol.title}`,
+      });
+    }
     fromCol.cards = fromCol.cards.filter((c) => c.id !== card_id);
     const toCol = board.columns.find((c) => c.id === to_column);
     const pos = position == null ? toCol.cards.length : position;

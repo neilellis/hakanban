@@ -8,6 +8,7 @@ import {
   formatDue,
   dueState,
   contrastText,
+  renderMarkdown,
 } from "./util.js";
 
 // Module-level drag state (HTML5 DnD can't read dataTransfer during dragover).
@@ -87,7 +88,6 @@ export class HakanbanBoard extends HTMLElement {
     badges.push(`<span class="hk-card-number">#${card.number}</span>`);
     if (card.due)
       badges.push(`<span class="hk-badge due-${ds}">🕑 ${escapeHtml(formatDue(card.due))}</span>`);
-    if (card.description) badges.push(`<span class="hk-badge">≡</span>`);
     if ((card.comments || []).length) badges.push(`<span class="hk-badge">💬 ${card.comments.length}</span>`);
     const checks = (card.checklists || []).reduce(
       (a, cl) => ({ done: a.done + cl.items.filter((i) => i.done).length, total: a.total + cl.items.length }),
@@ -96,11 +96,34 @@ export class HakanbanBoard extends HTMLElement {
     if (checks.total) badges.push(`<span class="hk-badge">☑ ${checks.done}/${checks.total}</span>`);
     if ((card.assignees || []).length) badges.push(`<span class="hk-badge">👤 ${card.assignees.length}</span>`);
 
+    // Inline checklist: render the actual items (collapses to the badge above only if empty).
+    const checklists = (card.checklists || []).filter((cl) => cl.items.length);
+    const checklistHtml = checklists.length
+      ? `<div class="hk-card-checks">
+          ${checklists
+            .map((cl) =>
+              cl.items
+                .map(
+                  (i) =>
+                    `<label class="hk-check-inline ${i.done ? "done" : ""}" data-card="${card.id}"><input type="checkbox" data-check="${cl.id}:${i.id}" ${i.done ? "checked" : ""}><span>${escapeHtml(i.text)}</span></label>`
+                )
+                .join("")
+            )
+            .join("")
+        }</div>`
+      : "";
+
+    const descHtml = card.description
+      ? `<div class="hk-card-desc">${renderMarkdown(card.description)}</div>`
+      : "";
+
     const completed = card.status === "completed" ? "completed" : "";
     return `
       <div class="hk-card ${completed}" draggable="true" data-card="${card.id}" data-col="${card.column_id}">
         ${labels ? `<div class="hk-card-labels">${labels}</div>` : ""}
         <div class="hk-card-title">${escapeHtml(card.title)}</div>
+        ${descHtml}
+        ${checklistHtml}
         <div class="hk-card-badges">${badges.join("")}</div>
       </div>`;
   }
@@ -175,6 +198,18 @@ export class HakanbanBoard extends HTMLElement {
     const api = this._api;
     const boardId = this._board.id;
     const boardEl = root.querySelector("[data-board]");
+
+    // --- inline checklist toggles (must run before the card-click handler so
+    //     we can stopPropagation and keep the detail modal from opening) ---
+    root.querySelectorAll(".hk-card-checks input[data-check]").forEach((cb) => {
+      cb.addEventListener("click", (e) => e.stopPropagation());
+      cb.addEventListener("change", () => {
+        const cardEl = cb.closest(".hk-card");
+        const cardId = cardEl ? cardEl.dataset.card : null;
+        const [clId, itemId] = cb.dataset.check.split(":");
+        if (cardId) api.toggleCheckItem(cardId, clId, itemId, cb.checked);
+      });
+    });
 
     // --- card click -> open modal (suppress if a drag just happened) ---
     root.querySelectorAll(".hk-card").forEach((el) => {
