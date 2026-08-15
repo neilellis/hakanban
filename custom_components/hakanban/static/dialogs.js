@@ -29,10 +29,11 @@ export function openOptionsDialog(shadowRoot, opts, board, api, onSave) {
   const rows = DISPLAY_OPTS
     .map((o) => {
       const main = `<label class="hk-opt-row"><input type="checkbox" id="hk-opt-${o.key}" ${opts[o.key] ? "checked" : ""}><span>${escapeHtml(o.label)}</span></label>`;
+      if (!o.children) return main;
       const kids = (o.children || [])
-        .map((ch) => `<label class="hk-opt-row hk-opt-sub"><input type="checkbox" id="hk-opt-${ch.key}" ${opts[ch.key] ? "checked" : ""}><span>${escapeHtml(ch.label)}</span></label>`)
+        .map((ch) => `<label class="hk-opt-row hk-opt-sub" data-parent="${o.key}"><input type="checkbox" id="hk-opt-${ch.key}" ${opts[ch.key] ? "checked" : ""}><span>${escapeHtml(ch.label)}</span></label>`)
         .join("");
-      return main + kids;
+      return `${main}<div class="hk-opt-children" id="hk-opt-children-${o.key}" style="display:${opts[o.key] ? "block" : "none"}">${kids}</div>`;
     })
     .join("");
 
@@ -88,6 +89,22 @@ export function openOptionsDialog(shadowRoot, opts, board, api, onSave) {
   });
   input.focus();
   input.select();
+
+  // Accordion logic: toggle children visibility and disabled state when parent changes
+  for (const o of DISPLAY_OPTS) {
+    if (!o.children) continue;
+    const parentCheck = back.querySelector(`#hk-opt-${o.key}`);
+    const childrenDiv = back.querySelector(`#hk-opt-children-${o.key}`);
+    if (!parentCheck || !childrenDiv) continue;
+    const updateChildren = () => {
+      const checked = parentCheck.checked;
+      childrenDiv.style.display = checked ? "block" : "none";
+      childrenDiv.classList.toggle("disabled", !checked);
+    };
+    parentCheck.addEventListener("change", updateChildren);
+    updateChildren();
+  }
+
   back.querySelectorAll("[data-bg]").forEach((el) =>
     el.addEventListener("click", () => {
       if (board && api) api.updateBoard(board.id, { background: el.dataset.bg || null });

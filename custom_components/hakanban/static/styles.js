@@ -171,6 +171,8 @@ export const STYLES = `
 .hk-comment-inline .hk-comment-ts { white-space: nowrap; font-size: .68rem; color: var(--hk-subtle); opacity: .7; }
 .hk-opt-row { display: flex; gap: 8px; align-items: center; font-size: .9rem; cursor: pointer; }
 .hk-opt-sub { padding-left: 20px; font-size: .82rem; color: var(--hk-subtle); }
+.hk-opt-children { display: flex; flex-direction: column; gap: 6px; padding-left: 20px; transition: opacity .15s; }
+.hk-opt-children.disabled { opacity: .4; pointer-events: none; }
 .hk-opt-section { margin: 14px 0 4px; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--hk-subtle); }
 .hk-opt-help { font-size: .78rem; color: var(--hk-subtle); margin: 8px 0 0; padding: 6px 10px; border-radius: 6px; background: rgba(127,127,127,.1); cursor: help; }
 .hk-opt-row input { margin: 0; cursor: pointer; }
