@@ -92,6 +92,14 @@ export const STYLES = `
   white-space: nowrap; overflow: hidden;
 }
 .hk-card-title { font-size: .9rem; line-height: 1.3; white-space: pre-wrap; word-break: break-word; }
+.hk-card-desc {
+  font-size: .76rem; line-height: 1.3; color: var(--hk-subtle); margin-top: 4px;
+  word-break: break-word; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.hk-card-desc code { background: rgba(127,127,127,.18); padding: 0 3px; border-radius: 3px; font-size: .9em; }
+.hk-card-desc ul { margin: 0; padding-left: 16px; }
+.hk-card-desc li { display: list-item; }
 .hk-card-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; color: var(--hk-subtle); font-size: .72rem; align-items: center; }
 .hk-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: 4px; }
 .hk-badge.due-overdue { background: #eb5a46; color: #fff; }
@@ -152,4 +160,26 @@ export const STYLES = `
 .hk-row input[type="datetime-local"], .hk-row input[type="text"] { padding: 6px; border-radius: 6px; border: 1px solid var(--hk-divider); background: var(--hk-col-bg); color: var(--hk-text); font: inherit; }
 .hk-check-item { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .hk-check-item.done span { text-decoration: line-through; color: var(--hk-subtle); }
+.hk-card-checks { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 0; }
+.hk-check-inline { display: flex; gap: 6px; align-items: center; font-size: .78rem; color: var(--hk-text); cursor: pointer; padding: 1px 0; }
+.hk-check-inline input { margin: 0; cursor: pointer; }
+.hk-check-inline.done span { text-decoration: line-through; color: var(--hk-subtle); }
+.hk-card-comments { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 0; }
+.hk-comment-inline { font-size: .74rem; line-height: 1.3; color: var(--hk-subtle); display: flex; gap: 5px; }
+.hk-comment-inline .hk-comment-author { font-weight: 600; color: var(--hk-text); white-space: nowrap; }
+.hk-comment-inline .hk-comment-text { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+.hk-comment-inline .hk-comment-ts { white-space: nowrap; font-size: .68rem; color: var(--hk-subtle); opacity: .7; }
+.hk-opt-row { display: flex; gap: 8px; align-items: center; font-size: .9rem; cursor: pointer; }
+.hk-opt-sub { padding-left: 20px; font-size: .82rem; color: var(--hk-subtle); }
+.hk-opt-children { display: flex; flex-direction: column; gap: 6px; padding-left: 20px; transition: opacity .15s; }
+.hk-opt-children.disabled { opacity: .4; pointer-events: none; }
+.hk-opt-section { margin: 14px 0 4px; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--hk-subtle); }
+.hk-opt-help { font-size: .78rem; color: var(--hk-subtle); margin: 8px 0 0; padding: 6px 10px; border-radius: 6px; background: rgba(127,127,127,.1); cursor: help; }
+.hk-opt-row input { margin: 0; cursor: pointer; }
+/* Compact mode: tighter cards, smaller text, less padding. */
+.hk-board.compact .hk-card { padding: 4px 6px; margin-bottom: 4px; }
+.hk-board.compact .hk-card-title { font-size: .82rem; }
+.hk-board.compact .hk-card-badges { margin-top: 3px; font-size: .66rem; gap: 6px; }
+.hk-board.compact .hk-card-labels { margin-bottom: 4px; gap: 3px; }
+.hk-board.compact .hk-label { font-size: .6rem; padding: 1px 6px; }
 `;

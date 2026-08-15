@@ -438,12 +438,35 @@ class HakanbanData:
         to_column: str,
         position: int | None = None,
         to_board: str | None = None,
+        user: str | None = None,
     ) -> dict[str, Any]:
         card = self._require_card(card_id)
         from_column = card["column_id"]
-        board_id = to_board or card["board_id"]
+        from_board_id = card["board_id"]
+        board_id = to_board or from_board_id
         board = self._require_board(board_id)
         self._column(board, to_column)  # validate target exists
+
+        # Auto-comment on cross-column / cross-board moves (not on reorders).
+        if from_column != to_column or from_board_id != board_id:
+            from_col = self._column(self._require_board(from_board_id), from_column)
+            to_col = self._column(board, to_column)
+            if from_board_id != board_id:
+                from_label = f"{self._require_board(from_board_id)['title']} › {from_col['title']}"
+                to_label = f"{board['title']} › {to_col['title']}"
+            else:
+                from_label = from_col["title"]
+                to_label = to_col["title"]
+            card.setdefault("comments", []).append(
+                {
+                    "id": _uid(),
+                    "author": user or "Home Assistant",
+                    "ts": _now(),
+                    "text": f"Moved from {from_label} to {to_label}",
+                    "move_from": from_label,
+                    "move_to": to_label,
+                }
+            )
 
         card["board_id"] = board_id
         card["column_id"] = to_column

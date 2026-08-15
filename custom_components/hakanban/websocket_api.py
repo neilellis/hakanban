@@ -254,9 +254,11 @@ def ws_update_card(hass, connection, msg, manager: HakanbanData):
 )
 @_guard
 def ws_move_card(hass, connection, msg, manager: HakanbanData):
+    user = getattr(getattr(connection, "user", None), "name", None)
     return manager.move_card(
         msg["card_id"], msg["to_column"],
         position=msg.get("position"), to_board=msg.get("to_board"),
+        user=user,
     )
 
 

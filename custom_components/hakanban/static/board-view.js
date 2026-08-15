@@ -1,37 +1,13 @@
 // <hakanban-board> — renders one board (columns + cards) with native drag & drop.
 // Used by both the full-page panel and the embeddable Lovelace card.
+// Card rendering lives in card-render.js; DnD wiring lives in dnd.js.
 
 import { STYLES } from "./styles.js";
 import { HakanbanCardDetail } from "./card-detail.js";
-import {
-  escapeHtml,
-  formatDue,
-  dueState,
-  contrastText,
-} from "./util.js";
-
-// Module-level drag state (HTML5 DnD can't read dataTransfer during dragover).
-let DRAG = null; // { kind: 'card'|'col', id, from? }
-
-function cardAfter(container, y) {
-  const els = [...container.querySelectorAll(".hk-card:not(.dragging)")];
-  let best = { offset: -Infinity, el: null };
-  for (const el of els) {
-    const box = el.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    if (offset < 0 && offset > best.offset) best = { offset, el };
-  }
-  return best.el;
-}
-
-function colInsertionIndex(boardEl, x) {
-  const cols = [...boardEl.querySelectorAll(".hk-col")];
-  for (let i = 0; i < cols.length; i++) {
-    const box = cols[i].getBoundingClientRect();
-    if (x < box.left + box.width / 2) return i;
-  }
-  return cols.length;
-}
+import { escapeHtml } from "./util.js";
+import { normalizeDisplayOpts } from "./display-opts.js";
+import { cardHtml } from "./card-render.js";
+import { wireDnD } from "./dnd.js";
 
 export class HakanbanBoard extends HTMLElement {
   constructor() {
@@ -42,6 +18,7 @@ export class HakanbanBoard extends HTMLElement {
     this._filter = { query: "", labels: new Set() };
     this._openCardId = null;
     this._modal = null;
+    this._displayOpts = normalizeDisplayOpts({});
   }
 
   set api(api) {
@@ -52,6 +29,10 @@ export class HakanbanBoard extends HTMLElement {
   }
   set filter(f) {
     this._filter = { query: (f.query || "").toLowerCase(), labels: f.labels || new Set() };
+    this.render();
+  }
+  set displayOpts(o) {
+    this._displayOpts = normalizeDisplayOpts(o);
     this.render();
   }
   set board(b) {
@@ -73,41 +54,9 @@ export class HakanbanBoard extends HTMLElement {
     return true;
   }
 
-  _cardHtml(card, labelById) {
-    const labels = (card.labels || [])
-      .map((id) => labelById[id])
-      .filter(Boolean)
-      .map(
-        (l) =>
-          `<span class="hk-label" style="background:${l.color};color:${contrastText(l.color)}">${escapeHtml(l.name || "")}</span>`
-      )
-      .join("");
-    const ds = dueState(card.due, card.due_complete);
-    const badges = [];
-    badges.push(`<span class="hk-card-number">#${card.number}</span>`);
-    if (card.due)
-      badges.push(`<span class="hk-badge due-${ds}">🕑 ${escapeHtml(formatDue(card.due))}</span>`);
-    if (card.description) badges.push(`<span class="hk-badge">≡</span>`);
-    if ((card.comments || []).length) badges.push(`<span class="hk-badge">💬 ${card.comments.length}</span>`);
-    const checks = (card.checklists || []).reduce(
-      (a, cl) => ({ done: a.done + cl.items.filter((i) => i.done).length, total: a.total + cl.items.length }),
-      { done: 0, total: 0 }
-    );
-    if (checks.total) badges.push(`<span class="hk-badge">☑ ${checks.done}/${checks.total}</span>`);
-    if ((card.assignees || []).length) badges.push(`<span class="hk-badge">👤 ${card.assignees.length}</span>`);
-
-    const completed = card.status === "completed" ? "completed" : "";
-    return `
-      <div class="hk-card ${completed}" draggable="true" data-card="${card.id}" data-col="${card.column_id}">
-        ${labels ? `<div class="hk-card-labels">${labels}</div>` : ""}
-        <div class="hk-card-title">${escapeHtml(card.title)}</div>
-        <div class="hk-card-badges">${badges.join("")}</div>
-      </div>`;
-  }
-
   _columnHtml(col, labelById) {
     const cards = (col.cards || []).filter((c) => this._cardVisible(c));
-    const cardsHtml = cards.map((c) => this._cardHtml(c, labelById)).join("");
+    const cardsHtml = cards.map((c) => cardHtml(c, labelById, this._displayOpts)).join("");
     const composerOpen = this._composer.openCol === col.id;
     const footer = composerOpen
       ? `<div class="hk-composer">
@@ -146,8 +95,9 @@ export class HakanbanBoard extends HTMLElement {
       : `<div class="hk-add-col"><button data-addcol-open>+ Add a list</button></div>`;
 
     const bg = b.background ? `style="background:${escapeHtml(b.background)}"` : "";
+    const compactCls = this._displayOpts.compact ? "compact" : "";
     this.shadowRoot.innerHTML = `<style>${STYLES}</style>
-      <div class="hk-board" data-board ${bg}>${cols}${addCol}</div>`;
+      <div class="hk-board ${compactCls}" data-board ${bg}>${cols}${addCol}</div>`;
 
     this._wire();
     this._restoreComposer();
@@ -176,67 +126,30 @@ export class HakanbanBoard extends HTMLElement {
     const boardId = this._board.id;
     const boardEl = root.querySelector("[data-board]");
 
+    // --- inline checklist toggles (must run before the card-click handler so
+    //     we can stopPropagation and keep the detail modal from opening) ---
+    root.querySelectorAll(".hk-card-checks input[data-check]").forEach((cb) => {
+      cb.addEventListener("click", (e) => e.stopPropagation());
+      cb.addEventListener("change", () => {
+        const cardEl = cb.closest(".hk-card");
+        const cardId = cardEl ? cardEl.dataset.card : null;
+        const [clId, itemId] = cb.dataset.check.split(":");
+        if (cardId) api.toggleCheckItem(cardId, clId, itemId, cb.checked);
+      });
+    });
+
     // --- card click -> open modal (suppress if a drag just happened) ---
     root.querySelectorAll(".hk-card").forEach((el) => {
       el.addEventListener("click", () => {
         if (this._justDragged) return;
         this._openCard(el.dataset.card);
       });
-      el.addEventListener("dragstart", (e) => {
-        DRAG = { kind: "card", id: el.dataset.card, from: el.dataset.col };
-        el.classList.add("dragging");
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", el.dataset.card);
-      });
-      el.addEventListener("dragend", () => {
-        el.classList.remove("dragging");
-        DRAG = null;
-        this._justDragged = true;
-        setTimeout(() => (this._justDragged = false), 50);
-      });
     });
 
-    // --- card drop targets (each column's card list) ---
-    root.querySelectorAll(".hk-col").forEach((colEl) => {
-      const colId = colEl.dataset.col;
-      const list = colEl.querySelector(".hk-cards");
-      colEl.addEventListener("dragover", (e) => {
-        if (DRAG?.kind !== "card") return;
-        e.preventDefault();
-        colEl.classList.add("dragover");
-      });
-      colEl.addEventListener("dragleave", () => colEl.classList.remove("dragover"));
-      colEl.addEventListener("drop", (e) => {
-        if (DRAG?.kind !== "card") return;
-        e.preventDefault();
-        colEl.classList.remove("dragover");
-        const after = cardAfter(list, e.clientY);
-        const ids = [...list.querySelectorAll(".hk-card")]
-          .map((n) => n.dataset.card)
-          .filter((id) => id !== DRAG.id);
-        const position = after ? ids.indexOf(after.dataset.card) : ids.length;
-        api.moveCard(DRAG.id, colId, position < 0 ? ids.length : position);
-      });
-    });
-
-    // --- column reordering ---
-    root.querySelectorAll("[data-colhead]").forEach((head) => {
-      head.addEventListener("dragstart", (e) => {
-        DRAG = { kind: "col", id: head.dataset.colhead };
-        e.dataTransfer.effectAllowed = "move";
-        e.stopPropagation();
-      });
-      head.addEventListener("dragend", () => (DRAG = null));
-    });
-    boardEl.addEventListener("dragover", (e) => {
-      if (DRAG?.kind !== "col") return;
-      e.preventDefault();
-    });
-    boardEl.addEventListener("drop", (e) => {
-      if (DRAG?.kind !== "col") return;
-      e.preventDefault();
-      const position = colInsertionIndex(boardEl, e.clientX);
-      api.moveColumn(boardId, DRAG.id, position);
+    // --- drag & drop (delegated to dnd.js) ---
+    wireDnD(root, api, boardId, boardEl, () => {
+      this._justDragged = true;
+      setTimeout(() => (this._justDragged = false), 50);
     });
 
     // --- column title rename ---
