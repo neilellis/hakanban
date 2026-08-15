@@ -46,6 +46,18 @@ function makeSeed() {
     mk("c1", "Buy milk", { labels: ["green"] }),
     mk("c1", "Walk the dog", { due: "2026-06-10T09:00:00", labels: ["red"] }),
   ];
+  const groceries = board.columns[0].cards[0];
+  groceries.checklists = [
+    {
+      id: "cl1",
+      title: "Shopping list",
+      items: [
+        { id: "i1", text: "2% milk", done: true },
+        { id: "i2", text: "Bread", done: false },
+        { id: "i3", text: "Eggs", done: false },
+      ],
+    },
+  ];
   board.columns[1].cards = [mk("c2", "Write the report", { description: "**Important** task" })];
   board.columns[2].cards = [mk("c3", "Ship it", { status: "completed" })];
   // normalise order

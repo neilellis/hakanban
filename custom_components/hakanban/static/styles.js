@@ -152,4 +152,8 @@ export const STYLES = `
 .hk-row input[type="datetime-local"], .hk-row input[type="text"] { padding: 6px; border-radius: 6px; border: 1px solid var(--hk-divider); background: var(--hk-col-bg); color: var(--hk-text); font: inherit; }
 .hk-check-item { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .hk-check-item.done span { text-decoration: line-through; color: var(--hk-subtle); }
+.hk-card-checks { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 0; }
+.hk-check-inline { display: flex; gap: 6px; align-items: center; font-size: .78rem; color: var(--hk-text); cursor: pointer; padding: 1px 0; }
+.hk-check-inline input { margin: 0; cursor: pointer; }
+.hk-check-inline.done span { text-decoration: line-through; color: var(--hk-subtle); }
 `;
