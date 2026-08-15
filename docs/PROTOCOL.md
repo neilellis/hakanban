@@ -43,7 +43,9 @@ frontend (panel + Lovelace card). Everything below is the source of truth.
       ],
       "comments": [ { "id": "<id>", "author": "Neil", "ts": "<iso8601>", "text": "..." } ],
       // comments are append-only (added via add_comment or auto-generated on
-      // cross-column/cross-board moves as "Moved from <from> to <to>")
+      // cross-column/cross-board moves as "Moved from <from> to <to>").
+      // Move comments also carry structured "move_from" and "move_to" fields
+      // (the column/board labels) so the frontend can toggle which parts to show.
       "cover": null,
       "archived": false,
       "created": "<iso8601>",

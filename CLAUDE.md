@@ -57,11 +57,20 @@ tests/             # plain `python3 tests/*.py` (HA is stubbed, real package mod
 
 ## Tests
 
-- Run: `python3 tests/test_logic.py` and `python3 tests/test_calendar.py` (no pytest, no HA install —
-  they stub `homeassistant.*` and load the real package modules via importlib).
-- `tests/browser/` is a manual mock-hass harness for poking the panel in a browser.
-- Backend/logic changes: add a `check(...)` to `test_logic.py`. Frontend-only changes can't be unit
-  tested here — run the suites anyway to prove the backend is intact, and say so.
+- **Backend/logic:** `python3 tests/test_logic.py` and `python3 tests/test_calendar.py` (no pytest,
+  no HA install — they stub `homeassistant.*` and load the real package modules via importlib).
+  Add a `check(...)` to `test_logic.py` for any backend change.
+- **Frontend (browser):** `tests/browser/` has two pages — serve the repo and open them in a browser:
+  ```bash
+  python3 -m http.server 8000
+  # http://localhost:8000/tests/browser/index.html          — manual smoke test (interactive)
+  # http://localhost:8000/tests/browser/test-display-opts.html — automated display-options checks
+  ```
+  `index.html` is a manual mock-hass harness for poking the panel. `test-display-opts.html` runs
+  automated assertions against the rendered DOM — it toggles each display option and verifies the
+  card HTML updates correctly (21 checks covering all options + comment sub-options).
+- Frontend-only changes: run the Python suites anyway to prove the backend is intact, and run the
+  browser test page to verify the frontend.
 
 ## Dev / release workflow
 
