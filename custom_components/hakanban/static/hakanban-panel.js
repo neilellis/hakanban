@@ -24,6 +24,12 @@ export class HakanbanPanel extends HTMLElement {
     this._built = false;
   }
 
+  // Optional: lock the initial board (used by the Lovelace card config).
+  // Set before `hass` is assigned. Pass a board id or title (case-insensitive).
+  set initialBoard(want) {
+    this._initialBoardWant = want || null;
+  }
+
   set hass(hass) {
     this._hass = hass;
     if (!this._api) {
@@ -76,6 +82,14 @@ export class HakanbanPanel extends HTMLElement {
     this._setupKeyboard();
     this._unsub = this._api.subscribe((payload) => {
       this._data = payload;
+      // Resolve the initial board: explicit config > localStorage > first board.
+      if (this._initialBoardWant) {
+        const want = this._initialBoardWant.toLowerCase();
+        const match = payload.boards.find((b) => b.id === this._initialBoardWant) ||
+          payload.boards.find((b) => (b.title || "").toLowerCase() === want);
+        if (match) this._activeBoardId = match.id;
+        this._initialBoardWant = null; // only on first payload
+      }
       if (!this._activeBoardId || !payload.boards.find((b) => b.id === this._activeBoardId)) {
         this._activeBoardId = payload.boards[0]?.id || null;
       }

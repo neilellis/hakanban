@@ -1,9 +1,13 @@
 // <hakanban-card> — embed a Hakanban board inside a Lovelace dashboard.
 // Config: { type: "custom:hakanban-card", board: "<id or title>", title?, height? }
+//
+// The card embeds a full <hakanban-panel> so the toolbar (board tabs,
+// undo/redo, search, filter, background, rename, delete) is available
+// inside the dashboard, not just in the sidebar panel.
 
 import { HakanbanApi } from "./api.js";
 import { escapeHtml } from "./util.js";
-import "./board-view.js";
+import "./hakanban-panel.js";
 
 class HakanbanCard extends HTMLElement {
   constructor() {
@@ -26,32 +30,12 @@ class HakanbanCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    if (!this._api) {
-      this._api = new HakanbanApi(hass);
-      this._build();
-      this._unsub = this._api.subscribe((payload) => {
-        this._data = payload;
-        this._update();
-      });
-    } else {
-      this._api.setHass(hass);
-      if (this._boardEl) this._boardEl.hass = hass;
-    }
+    if (!this._built) this._build();
+    if (this._panelEl) this._panelEl.hass = hass;
   }
 
   disconnectedCallback() {
-    if (this._unsub) this._unsub.then((u) => u && u()).catch(() => {});
-  }
-
-  _resolveBoard() {
-    const boards = this._data?.boards || [];
-    const want = (this._config.board || "").toLowerCase();
-    if (!want) return boards[0] || null;
-    return (
-      boards.find((b) => b.id === this._config.board) ||
-      boards.find((b) => (b.title || "").toLowerCase() === want) ||
-      null
-    );
+    // The panel handles its own unsubscribe on disconnect.
   }
 
   _build() {
@@ -61,22 +45,17 @@ class HakanbanCard extends HTMLElement {
         ha-card { overflow: hidden; }
         .head { padding: 12px 16px 0; font-size: 1.1rem; font-weight: 600; }
         .host { height: ${height}; display: flex; }
-        hakanban-board { flex: 1; min-width: 0; }
+        hakanban-panel { flex: 1; min-width: 0; }
       </style>
       <ha-card>
         ${this._config.title ? `<div class="head">${escapeHtml(this._config.title)}</div>` : ""}
         <div class="host"></div>
       </ha-card>`;
-    this._boardEl = document.createElement("hakanban-board");
-    this._boardEl.api = this._api;
-    this._boardEl.hass = this._hass;
-    this.shadowRoot.querySelector(".host").appendChild(this._boardEl);
+    this._panelEl = document.createElement("hakanban-panel");
+    this._panelEl.initialBoard = this._config.board || null;
+    this.shadowRoot.querySelector(".host").appendChild(this._panelEl);
+    if (this._hass) this._panelEl.hass = this._hass;
     this._built = true;
-  }
-
-  _update() {
-    if (!this._boardEl) return;
-    this._boardEl.board = this._resolveBoard();
   }
 }
 
