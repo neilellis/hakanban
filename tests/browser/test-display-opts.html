@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hakanban display-opts tests</title>
+    <style>
+      body { background: #1d2125; color: #e6edf3; font-family: monospace; padding: 20px; }
+      .pass { color: #61bd4f; }
+      .fail { color: #eb5a46; }
+      :root {
+        --primary-text-color: #e6edf3;
+        --secondary-text-color: #9aa4b2;
+        --primary-color: #4f9dff;
+        --card-background-color: #22272e;
+        --ha-card-background: #2d333b;
+        --divider-color: rgba(255,255,255,.12);
+        --app-header-background-color: #1b3a5b;
+        --app-header-text-color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Display options tests</h1>
+    <div id="results"></div>
+    <div id="host" style="position:absolute;left:-9999px;top:0;width:800px;height:600px"></div>
+
+    <script type="module">
+      import "/tests/browser/mock-hass.js";
+      import "/custom_components/hakanban/static/hakanban-panel.js";
+
+      const results = [];
+      const host = document.getElementById("host");
+      const panel = document.createElement("hakanban-panel");
+      host.appendChild(panel);
+      panel.hass = window.__mockHass;
+
+      function check(name, cond) {
+        results.push({ name, cond });
+        const el = document.createElement("div");
+        el.className = cond ? "pass" : "fail";
+        el.textContent = (cond ? "PASS" : "FAIL") + " - " + name;
+        document.getElementById("results").appendChild(el);
+      }
+
+      // Wait for the panel to subscribe and render, then run tests.
+      async function runTests() {
+        // Give the mock-hass subscription time to deliver initial payload.
+        await new Promise((r) => setTimeout(r, 100));
+
+        const board = panel._boardEl;
+        if (!board || !board.board) {
+          check("board element rendered", false);
+          finish();
+          return;
+        }
+        check("board element rendered", true);
+
+        // --- Helper: move a card to generate an auto-comment, then read the rendered card ---
+        function moveCardAndRender(cardId, toColumn) {
+          window.__mockHass.connection.sendMessagePromise({
+            type: "hakanban/move_card",
+            card_id: cardId,
+            to_column: toColumn,
+          });
+        }
+
+        // Wait for the move to process and re-render.
+        await new Promise((r) => setTimeout(r, 50));
+
+        // Find a card with a move comment. The seed "Buy milk" (id b1->c1->first card)
+        // Move it to "Doing" (c2) to generate a move comment.
+        const cards = board.shadowRoot.querySelectorAll(".hk-card");
+        const firstCard = cards[0];
+        const firstCardId = firstCard.dataset.card;
+        moveCardAndRender(firstCardId, "c2");
+        await new Promise((r) => setTimeout(r, 50));
+
+        // After the move, the board re-renders from the pushed payload.
+        // Find the card in its new column.
+        function findCardEl(cardId) {
+          return board.shadowRoot.querySelector(`.hk-card[data-card="${cardId}"]`);
+        }
+
+        let cardEl = findCardEl(firstCardId);
+        check("card exists after move", !!cardEl);
+
+        if (!cardEl) { finish(); return; }
+
+        // --- Test: default opts show "from" and "to" in comment text ---
+        let commentText = cardEl.querySelector(".hk-comment-text");
+        check("comment rendered with showComments on", !!commentText);
+        if (commentText) {
+          check("comment includes 'from' by default", commentText.textContent.includes("from"));
+          check("comment includes 'to' by default", commentText.textContent.includes("to"));
+        }
+
+        // --- Test: uncheck "Moved from" — "from" should disappear ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          commentShowFrom: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        commentText = cardEl ? cardEl.querySelector(".hk-comment-text") : null;
+        check("comment excludes 'from' when commentShowFrom is false",
+          commentText && !commentText.textContent.includes("from") && commentText.textContent.includes("to"));
+
+        // --- Test: uncheck "Moved to" — "to" should disappear ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          commentShowFrom: true,
+          commentShowTo: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        commentText = cardEl ? cardEl.querySelector(".hk-comment-text") : null;
+        check("comment excludes 'to' when commentShowTo is false",
+          commentText && commentText.textContent.includes("from") && !commentText.textContent.includes("to"));
+
+        // --- Test: uncheck both "from" and "to" — should just say "Moved" ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          commentShowFrom: false,
+          commentShowTo: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        commentText = cardEl ? cardEl.querySelector(".hk-comment-text") : null;
+        check("comment says just 'Moved' when both from/to off",
+          commentText && commentText.textContent === "Moved");
+
+        // --- Test: uncheck "User" — author span should not render ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          commentShowFrom: true,
+          commentShowTo: true,
+          commentShowUser: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const authorEl = cardEl ? cardEl.querySelector(".hk-comment-author") : null;
+        check("author span hidden when commentShowUser is false", !authorEl);
+
+        // --- Test: uncheck "Date" — timestamp span should not render ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          commentShowUser: true,
+          commentShowDate: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const tsEl = cardEl ? cardEl.querySelector(".hk-comment-ts") : null;
+        check("timestamp hidden when commentShowDate is false", !tsEl);
+
+        // --- Test: check "Time" — timestamp span should render with time ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          commentShowDate: false,
+          commentShowTime: true,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const tsEl2 = cardEl ? cardEl.querySelector(".hk-comment-ts") : null;
+        check("timestamp shown when commentShowTime is true", !!tsEl2);
+
+        // --- Test: uncheck "Comments" entirely — should show count badge instead ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          showComments: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const commentSection = cardEl ? cardEl.querySelector(".hk-card-comments") : null;
+        const countBadge = cardEl ? [...cardEl.querySelectorAll(".hk-badge")].find((b) => b.textContent.includes("💬")) : null;
+        check("inline comments hidden when showComments is false", !commentSection);
+        check("count badge shown when showComments is false", !!countBadge);
+
+        // --- Test: uncheck "Title" — title should not render ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          showComments: true,
+          showTitle: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const titleEl = cardEl ? cardEl.querySelector(".hk-card-title") : null;
+        check("title hidden when showTitle is false", !titleEl);
+
+        // --- Test: uncheck "Description" ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          showTitle: true,
+          showDescription: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const descEl = cardEl ? cardEl.querySelector(".hk-card-desc") : null;
+        check("description hidden when showDescription is false", !descEl);
+
+        // --- Test: uncheck "Checklists" ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          showDescription: true,
+          showChecklists: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const checksEl = cardEl ? cardEl.querySelector(".hk-card-checks") : null;
+        check("checklists hidden when showChecklists is false", !checksEl);
+
+        // --- Test: uncheck "Tags" (labels) ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          showChecklists: true,
+          showLabels: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const labelsEl = cardEl ? cardEl.querySelector(".hk-card-labels") : null;
+        check("labels hidden when showLabels is false", !labelsEl);
+
+        // --- Test: uncheck "Card number" ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          showLabels: true,
+          showCardNumber: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const numEl = cardEl ? cardEl.querySelector(".hk-card-number") : null;
+        check("card number hidden when showCardNumber is false", !numEl);
+
+        // --- Test: uncheck "Due date" ---
+        // Find the "Walk the dog" card which has a due date.
+        const allCards = board.shadowRoot.querySelectorAll(".hk-card");
+        let dueCard = null;
+        for (const c of allCards) {
+          if (c.querySelector('.hk-badge[class*="due-"]')) { dueCard = c; break; }
+        }
+        if (dueCard) {
+          board.displayOpts = {
+            ...board._displayOpts,
+            showCardNumber: true,
+            showDueDate: false,
+          };
+          await new Promise((r) => setTimeout(r, 20));
+          // Re-find the card after re-render
+          const dueCardId = dueCard.dataset.card;
+          const dueCardEl = findCardEl(dueCardId);
+          const dueBadge = dueCardEl ? dueCardEl.querySelector('.hk-badge[class*="due-"]') : null;
+          check("due date hidden when showDueDate is false", !dueBadge);
+        } else {
+          check("due date card found for testing", false);
+        }
+
+        // --- Test: uncheck "Assignees" ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          showDueDate: true,
+          showAssignees: false,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        cardEl = findCardEl(firstCardId);
+        const assigneeBadge = cardEl ? [...cardEl.querySelectorAll(".hk-badge")].find((b) => b.textContent.includes("👤")) : null;
+        check("assignees hidden when showAssignees is false", !assigneeBadge);
+
+        // --- Test: compact mode adds 'compact' class ---
+        board.displayOpts = {
+          ...board._displayOpts,
+          compact: true,
+        };
+        await new Promise((r) => setTimeout(r, 20));
+        const boardEl = board.shadowRoot.querySelector(".hk-board");
+        check("compact class applied when compact is true", boardEl && boardEl.classList.contains("compact"));
+
+        // Reset to defaults
+        board.displayOpts = {
+          showTitle: true, showDescription: true, showChecklists: true, showLabels: true,
+          showCardNumber: true, showDueDate: true, showComments: true, showAssignees: true,
+          commentShowUser: true, commentShowFrom: true, commentShowTo: true,
+          commentShowDate: true, commentShowTime: false,
+          compact: false,
+        };
+
+        finish();
+      }
+
+      function finish() {
+        const passed = results.filter((r) => r.cond).length;
+        const total = results.length;
+        const el = document.createElement("div");
+        el.style.fontSize = "1.2em";
+        el.style.marginTop = "16px";
+        el.className = passed === total ? "pass" : "fail";
+        el.textContent = `\n${passed}/${total} checks passed`;
+        document.getElementById("results").appendChild(el);
+        window.__testResults = results;
+        window.__testDone = true;
+        const body = results.map((r) => (r.cond ? "PASS" : "FAIL") + " - " + r.name).join("\n") + "\n" + passed + "/" + total + " checks passed";
+        fetch("http://localhost:8125/results", { method: "POST", body });
+      }
+
+      // Start tests after panel has rendered.
+      setTimeout(runTests, 200);
+    </script>
+  </body>
+</html>
